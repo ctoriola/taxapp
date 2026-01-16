@@ -314,27 +314,27 @@ export default function InvoicesPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-stone-100/50 border-b border-stone-200/50">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            Invoice #
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            Due Date
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            Amount
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
+                          <tr>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Invoice #
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Due Date
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Amount
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
                       <tbody className="divide-y divide-stone-200/50">
                         {groupedByMonth[item.month!].map((invoice) => (
                           <tr
