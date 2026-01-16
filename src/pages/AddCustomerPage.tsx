@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function AddCustomerPage() {
   const navigate = useNavigate();
-  const { addCustomer, isLoading } = useCustomers();
+  const { addCustomer, isLoading, customers } = useCustomers();
   const { user, profile, signOut } = useAuth();
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,6 +40,22 @@ export default function AddCustomerPage() {
 
     if (!formData.name || !formData.email || !formData.phone) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Check for duplicate email in existing customers
+    const customerEmailExists = customers.some(
+      (customer) => customer.email.toLowerCase() === formData.email.toLowerCase()
+    );
+    if (customerEmailExists) {
+      setError('A customer with this email already exists');
       return;
     }
 

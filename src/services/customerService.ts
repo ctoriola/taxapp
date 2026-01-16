@@ -183,6 +183,12 @@ export async function addCustomer(customer: Omit<Customer, 'id' | 'created_at' |
         hint: error.hint,
         fullError: error
       });
+      
+      // Provide user-friendly error message for duplicate email
+      if (error.code === '23505') {
+        throw new Error('A customer with this email already exists');
+      }
+      
       throw error;
     }
 
