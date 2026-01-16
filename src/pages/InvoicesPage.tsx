@@ -311,8 +311,9 @@ export default function InvoicesPage() {
                 <div key={`month-${index}`} className="mb-6">
                   <h3 className="text-lg font-bold text-slate-900 mb-4 mt-6">{item.month}</h3>
                   <div className="card-bento overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-stone-100/50 border-b border-stone-200/50">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-stone-100/50 border-b border-stone-200/50">
                         <tr>
                           <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                             Invoice #
@@ -403,6 +404,7 @@ export default function InvoicesPage() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               ) : null
