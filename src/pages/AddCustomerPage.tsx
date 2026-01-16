@@ -38,25 +38,27 @@ export default function AddCustomerPage() {
     e.preventDefault();
     setError('');
 
-    if (!formData.name || !formData.email || !formData.phone) {
-      setError('Please fill in all required fields');
+    if (!formData.name || !formData.phone) {
+      setError('Please fill in name and phone');
       return;
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
-      return;
-    }
+    // Validate email format if provided
+    if (formData.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setError('Please enter a valid email address');
+        return;
+      }
 
-    // Check for duplicate email in existing customers
-    const customerEmailExists = customers.some(
-      (customer) => customer.email.toLowerCase() === formData.email.toLowerCase()
-    );
-    if (customerEmailExists) {
-      setError('A customer with this email already exists');
-      return;
+      // Check for duplicate email in existing customers only if email is provided
+      const customerEmailExists = customers.some(
+        (customer) => customer.email.toLowerCase() === formData.email.toLowerCase()
+      );
+      if (customerEmailExists) {
+        setError('A customer with this email already exists');
+        return;
+      }
     }
 
     try {
@@ -202,7 +204,7 @@ export default function AddCustomerPage() {
                 {/* Email */}
                 <div>
                   <label htmlFor="email" className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                    Email Address
+                    Email Address <span className="text-stone-400 text-xs">(Optional)</span>
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-3 w-5 h-5 text-stone-400" />
@@ -214,7 +216,6 @@ export default function AddCustomerPage() {
                       onChange={handleChange}
                       placeholder="john@example.com"
                       className="input-field pl-12"
-                      required
                     />
                   </div>
                 </div>
