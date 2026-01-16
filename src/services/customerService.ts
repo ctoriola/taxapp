@@ -54,13 +54,16 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'id' | 'created
       .single();
 
     if (error) {
-      console.warn('Error saving user profile:', error);
+      console.error('RLS/Database error details:', error);
+      if (error.code === 'PGRST301') {
+        throw new Error('Permission denied. Please try logging in again.');
+      }
       throw error;
     }
 
     return data;
   } catch (err) {
-    console.warn('Error saving user profile:', err);
+    console.error('Error saving user profile:', err);
     throw err;
   }
 }

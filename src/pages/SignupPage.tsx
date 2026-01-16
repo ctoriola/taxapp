@@ -114,6 +114,9 @@ export default function SignupPage() {
       // Sign up with email and password
       const newUser = await authSignUp(formData.email, formData.password);
       
+      // Wait a moment for the session to be established
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Upload logo if provided
       let logoUrl = '';
       if (logoFile) {
