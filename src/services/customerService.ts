@@ -23,18 +23,24 @@ export interface UserProfile {
   updated_at: string;
 }
 
-export async function saveUserProfile(profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>): Promise<UserProfile> {
+export async function saveUserProfile(profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>, userId?: string): Promise<UserProfile> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    let user_id = userId;
     
-    if (!user) {
-      throw new Error('No authenticated user');
+    // If no userId provided, try to get it from auth
+    if (!user_id) {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
+      user_id = user.id;
     }
 
     const { data, error } = await supabase
       .from('user_profiles')
       .upsert({
-        id: user.id,
+        id: user_id,
         email: profile.email,
         full_name: profile.full_name,
         business_name: profile.business_name,

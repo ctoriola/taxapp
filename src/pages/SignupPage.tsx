@@ -111,7 +111,7 @@ export default function SignupPage() {
 
     try {
       // Sign up with email and password
-      await signUp(formData.email, formData.password);
+      const newUser = await signUp(formData.email, formData.password);
       
       // Upload logo if provided
       let logoUrl = '';
@@ -119,7 +119,7 @@ export default function SignupPage() {
         logoUrl = await uploadCompanyLogo(logoFile);
       }
 
-      // Save business profile data
+      // Save business profile data with the new user's ID
       await saveUserProfile({
         email: formData.email,
         full_name: formData.fullName,
@@ -128,7 +128,7 @@ export default function SignupPage() {
         phone: formData.phone,
         location: formData.location,
         logo_url: logoUrl || undefined,
-      });
+      }, newUser.id);
       
       setSuccess(true);
       setTimeout(() => {
