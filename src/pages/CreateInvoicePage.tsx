@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCustomers } from '../context/CustomersContext';
 import { Plus, Save, Send, X as XIcon, AlertCircle, CheckCircle, Menu, LogOut, Settings, Bell, Search, Home } from 'lucide-react';
