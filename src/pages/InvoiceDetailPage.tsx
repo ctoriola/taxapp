@@ -288,9 +288,9 @@ export default function InvoiceDetailPage() {
   const statusColor = getStatusColor(invoice.status);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-4 lg:p-6">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <button
           onClick={() => navigate('/invoices')}
           className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
@@ -298,35 +298,35 @@ export default function InvoiceDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Invoices
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {invoice.status === 'draft' && (
             <>
               <button
                 onClick={handleEdit}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Edit2 className="w-4 h-4" />
-                Edit
+                <span className="hidden sm:inline">Edit</span>
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+              <button className="flex items-center gap-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                 <Send className="w-4 h-4" />
-                Send
+                <span className="hidden sm:inline">Send</span>
               </button>
             </>
           )}
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
           >
             <Printer className="w-4 h-4" />
-            Print
+            <span className="hidden sm:inline">Print</span>
           </button>
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
           >
             <Download className="w-4 h-4" />
-            PDF
+            <span className="hidden sm:inline">PDF</span>
           </button>
         </div>
       </div>
@@ -334,10 +334,10 @@ export default function InvoiceDetailPage() {
       {/* Invoice Document */}
       <div id="invoice-document" className="bg-white rounded-lg shadow-lg border border-slate-200 max-w-4xl mx-auto">
         {/* Document Content */}
-        <div className="p-12">
+        <div className="p-4 sm:p-8 lg:p-12">
           {/* Header Section */}
-          <div className="flex items-start justify-between mb-12 pb-8 border-b border-slate-200">
-            <div className="flex items-start gap-4">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-6 mb-8 sm:mb-12 pb-6 sm:pb-8 border-b border-slate-200">
+            <div className="flex items-start gap-3 sm:gap-4 flex-shrink-0">
               {profile?.logo_url && (
                 <img
                   src={profile.logo_url}
@@ -367,7 +367,7 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Invoice Details */}
-          <div className="grid grid-cols-2 gap-12 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-12 mb-8 sm:mb-12">
             {/* Left Column */}
             <div className="space-y-8">
               <div>
