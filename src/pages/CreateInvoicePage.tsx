@@ -297,7 +297,7 @@ export default function CreateInvoicePage() {
             <div className="card-bento p-6">
               <h2 className="text-lg font-bold text-emerald-900 mb-4">Invoice Details</h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 {/* Invoice Number */}
                 <div>
                   <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
