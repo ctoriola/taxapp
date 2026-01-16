@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, User, Building2, Phone, MapPin, Upload, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { saveUserProfile, uploadCompanyLogo } from '../services/customerService';
+import { signUp as authSignUp } from '../services/authService';
 
 export default function SignupPage() {
   const [step, setStep] = useState(1); // Step 1: Account, Step 2: Business Info
@@ -111,7 +112,7 @@ export default function SignupPage() {
 
     try {
       // Sign up with email and password
-      const newUser = await signUp(formData.email, formData.password);
+      const newUser = await authSignUp(formData.email, formData.password);
       
       // Upload logo if provided
       let logoUrl = '';
