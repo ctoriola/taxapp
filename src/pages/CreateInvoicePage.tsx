@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCustomers } from '../context/DataContext';
-import { Plus, Save, Send, X as XIcon, AlertCircle, CheckCircle, Menu, LogOut, Settings, Bell, Search, Home } from 'lucide-react';
+import { Plus, Save, Send, X as XIcon, AlertCircle, CheckCircle, Menu, LogOut, Settings, Bell, Home } from 'lucide-react';
 import CustomerSelect from '../components/CustomerSelect';
 import NewCustomerModal from '../components/NewCustomerModal';
 import InvoiceLineItem, { LineItem } from '../components/InvoiceLineItem';
 import InvoiceSummary from '../components/InvoiceSummary';
 import { createInvoice, generateInvoiceNumber } from '../services/invoiceService';
+import GlobalSearch from '../components/GlobalSearch';
 
 export default function CreateInvoicePage() {
   const navigate = useNavigate();
@@ -208,14 +209,7 @@ export default function CreateInvoicePage() {
 
           {/* Center: Search */}
           <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search transactions..."
-                className="input-field pl-10 py-2.5"
-              />
-            </div>
+            <GlobalSearch />
           </div>
 
           {/* Right: Notifications & Profile */}

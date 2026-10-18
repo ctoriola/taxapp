@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Plus, FileText, Eye, Trash2, Send, TrendingUp, AlertCircle, CheckCircle2, DollarSign, Menu, X, LogOut, Settings, Bell, Search, Home } from 'lucide-react';
+import { Plus, FileText, Eye, Trash2, Send, TrendingUp, AlertCircle, CheckCircle2, DollarSign, Menu, X, LogOut, Settings, Bell, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useInvoices } from '../context/DataContext';
 import DataErrorBanner from '../components/DataErrorBanner';
+import GlobalSearch from '../components/GlobalSearch';
 
 interface Invoice {
   id: string;
@@ -151,14 +152,7 @@ export default function InvoicesPage() {
 
           {/* Center: Search */}
           <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search transactions..."
-                className="input-field pl-10 py-2.5"
-              />
-            </div>
+            <GlobalSearch />
           </div>
 
           {/* Right: Notifications & Profile */}

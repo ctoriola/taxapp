@@ -4,6 +4,7 @@ import { Plus, Search, TrendingDown, DollarSign, AlertCircle, CheckCircle2, Cloc
 import { Expense } from '../services/expenseService';
 import { useExpenses } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import GlobalSearch from '../components/GlobalSearch';
 
 type TabType = 'all' | 'draft' | 'pending' | 'approved' | 'rejected';
 
@@ -183,14 +184,7 @@ export default function ExpensesPage() {
 
           {/* Center: Search */}
           <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search transactions..."
-                className="input-field pl-10 py-2.5"
-              />
-            </div>
+            <GlobalSearch />
           </div>
 
           {/* Right: Notifications & Profile */}
