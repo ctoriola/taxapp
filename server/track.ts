@@ -50,7 +50,9 @@ export async function handleTrack(rawBody: string, services: AdminServices | nul
     // Throttle repeats, but always record signing in or out
     if (previous && previous.signedIn === signedIn && now - previous.at < MIN_PING_INTERVAL_MS) return 204;
     lastPing.set(visitorId, { at: now, signedIn });
-    await db.doc(`presence/${visitorId}`).set({ lastSeen: Timestamp.fromMillis(now), signedIn });
+    // Each state keeps its own timestamp, so pings that land out of order can't undo a sign-in
+    const at = Timestamp.fromMillis(now);
+    await db.doc(`presence/${visitorId}`).set({ lastSeen: at, [signedIn ? 'signedInSeen' : 'anonymousSeen']: at }, { merge: true });
     return 204;
   }
 

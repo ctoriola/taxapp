@@ -109,8 +109,13 @@ async function overview(services: AdminServices, now: number) {
   });
 
   // Live: browsers that checked in within the last two minutes
-  const live = await db.collection('presence').where('lastSeen', '>=', Timestamp.fromMillis(now - LIVE_WINDOW_MS)).get();
-  const liveSignedIn = live.docs.filter((d) => d.get('signedIn') === true).length;
+  // Signed in if the browser reported a signed-in user at any point in the window
+  const liveSince = Timestamp.fromMillis(now - LIVE_WINDOW_MS);
+  const live = await db.collection('presence').where('lastSeen', '>=', liveSince).get();
+  const liveSignedIn = live.docs.filter((d) => {
+    const seen = d.get('signedInSeen') as Timestamp | undefined;
+    return !!seen && seen.toMillis() >= liveSince.toMillis();
+  }).length;
 
   const [invoices, customers, expenses, filedReturns] = await Promise.all([
     countOf(db.collectionGroup('invoices')),
