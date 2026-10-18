@@ -32,13 +32,13 @@ export function getAdminServices(): AdminServices | null {
     try {
       account = JSON.parse(raw);
     } catch {
-      console.error('FIREBASE_SERVICE_ACCOUNT is not valid JSON');
-      return null;
+      throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON. Paste the whole downloaded key file as its value.');
     }
     projectId = account.project_id;
-    privateKey = account.private_key;
+    // Tolerate keys whose line breaks were escaped twice when pasted
+    privateKey = (account.private_key || '').replace(/\\n/g, '\n');
     app = getApps()[0] ?? initializeApp({
-      credential: cert({ projectId, clientEmail: account.client_email, privateKey: account.private_key }),
+      credential: cert({ projectId, clientEmail: account.client_email, privateKey }),
       projectId,
     });
   } else if (usingEmulator) {
