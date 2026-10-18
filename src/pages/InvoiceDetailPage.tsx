@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Send, Edit2, Copy, CheckCircle, Printer } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { fetchInvoice, updateInvoice, Invoice } from '../services/invoiceService';
 import { useCustomers } from '../context/CustomersContext';
 
 // Print styles
@@ -34,30 +34,6 @@ const printStyles = `
   }
 `;
 
-interface LineItem {
-  description: string;
-  quantity: number;
-  unit_price: number;
-  line_total: number;
-}
-
-interface Invoice {
-  id: string;
-  invoice_number: string;
-  customer_id: string;
-  invoice_date: string;
-  due_date: string;
-  notes: string | null;
-  subtotal: number;
-  vat_amount: number;
-  total_amount: number;
-  apply_vat: boolean;
-  status: 'draft' | 'unpaid' | 'partially_paid' | 'paid' | 'overdue';
-  amount_paid: number;
-  line_items: LineItem[];
-  company_logo_url: string | null;
-  created_at: string;
-}
 
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -92,17 +68,7 @@ export default function InvoiceDetailPage() {
   const loadInvoice = async (invoiceId: string) => {
     try {
       setIsLoading(true);
-      const { data, error: fetchError } = await supabase
-        .from('invoices')
-        .select('*')
-        .eq('id', invoiceId)
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching invoice:', fetchError);
-        setError('Failed to load invoice');
-        return;
-      }
+      const data = await fetchInvoice(invoiceId);
 
       if (!data) {
         setError('Invoice not found');
@@ -234,21 +200,10 @@ export default function InvoiceDetailPage() {
         newStatus = 'partially_paid';
       }
 
-      const { data, error } = await supabase
-        .from('invoices')
-        .update({
-          amount_paid: amountPaid,
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', invoice.id)
-        .select('id');
-
-      if (error || !data?.length) {
-        console.error('Error updating payment:', error);
-        setPaymentError('Could not save payment. Please try again.');
-        return;
-      }
+      await updateInvoice(invoice.id, {
+        amount_paid: amountPaid,
+        status: newStatus,
+      });
 
       // Update local state
       setInvoice({

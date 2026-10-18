@@ -1,4 +1,5 @@
-import { supabase } from '../lib/supabaseClient';
+import { addDoc, getDoc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore';
+import { currentUid, now, requireUid, userCollection, userCollectionDoc, withId } from './db';
 
 export interface InvoiceLineItem {
   id?: string;
@@ -12,7 +13,6 @@ export type InvoiceStatus = 'draft' | 'unpaid' | 'partially_paid' | 'paid' | 'ov
 
 export interface Invoice {
   id: string;
-  user_id: string;
   customer_id: string;
   invoice_number: string;
   invoice_date: string;
@@ -30,124 +30,32 @@ export interface Invoice {
   updated_at: string;
 }
 
-export interface CompanyLogo {
-  id: string;
-  user_id: string;
-  logo_url: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// Upload company logo
-export async function uploadCompanyLogo(file: File): Promise<CompanyLogo> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
-
-    // Upload file to storage
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from('logos')
-      .upload(`company-logos/${fileName}`, file, { upsert: true });
-
-    if (storageError) throw storageError;
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('logos')
-      .getPublicUrl(`company-logos/${fileName}`);
-
-    // Save logo reference in database
-    const { data, error } = await supabase
-      .from('company_logos')
-      .upsert({
-        user_id: user.id,
-        logo_url: urlData.publicUrl,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' })
-      .select()
-      .maybeSingle();
-
-    if (error) throw error;
-    return data || { id: '', user_id: user.id, logo_url: urlData.publicUrl, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-  } catch (err) {
-    console.error('Error uploading logo:', err);
-    throw err;
-  }
-}
-
-// Get company logo
-export async function getCompanyLogo(): Promise<CompanyLogo | null> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    const { data, error } = await supabase
-      .from('company_logos')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.warn('Error fetching logo:', error);
-      return null;
-    }
-
-    return data || null;
-  } catch (err) {
-    console.warn('Error fetching company logo:', err);
-    return null;
-  }
-}
-
-// Delete company logo
-export async function deleteCompanyLogo(): Promise<void> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
-
-    const { error } = await supabase
-      .from('company_logos')
-      .delete()
-      .eq('user_id', user.id);
-
-    if (error) throw error;
-  } catch (err) {
-    console.error('Error deleting logo:', err);
-    throw err;
-  }
-}
+type InvoiceUpdate = Partial<Omit<Invoice, 'id' | 'created_at' | 'updated_at'>>;
 
 // Create invoice
-export async function createInvoice(invoice: Omit<Invoice, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<Invoice> {
+export async function createInvoice(invoice: Omit<Invoice, 'id' | 'created_at' | 'updated_at'>): Promise<Invoice> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
+    const uid = await requireUid();
+    const timestamp = now();
+    const data = {
+      customer_id: invoice.customer_id,
+      invoice_number: invoice.invoice_number,
+      invoice_date: invoice.invoice_date,
+      due_date: invoice.due_date,
+      notes: invoice.notes || '',
+      subtotal: invoice.subtotal,
+      vat_amount: invoice.vat_amount,
+      total_amount: invoice.total_amount,
+      amount_paid: invoice.amount_paid,
+      apply_vat: invoice.apply_vat,
+      status: invoice.status,
+      line_items: invoice.line_items,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
 
-    const { data, error } = await supabase
-      .from('invoices')
-      .insert({
-        user_id: user.id,
-        customer_id: invoice.customer_id,
-        invoice_number: invoice.invoice_number,
-        invoice_date: invoice.invoice_date,
-        due_date: invoice.due_date,
-        notes: invoice.notes,
-        subtotal: invoice.subtotal,
-        vat_amount: invoice.vat_amount,
-        total_amount: invoice.total_amount,
-        amount_paid: invoice.amount_paid,
-        apply_vat: invoice.apply_vat,
-        status: invoice.status,
-        line_items: invoice.line_items,
-        company_logo_url: invoice.company_logo_url,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    const ref = await addDoc(userCollection(uid, 'invoices'), data);
+    return { id: ref.id, ...data };
   } catch (err) {
     console.error('Error creating invoice:', err);
     throw err;
@@ -157,24 +65,32 @@ export async function createInvoice(invoice: Omit<Invoice, 'id' | 'user_id' | 'c
 // Get invoices
 export async function fetchInvoices(): Promise<Invoice[]> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    const uid = await currentUid();
+    if (!uid) return [];
 
-    const { data, error } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.warn('Error fetching invoices:', error);
-      return [];
-    }
-
-    return data || [];
+    const snapshot = await getDocs(query(userCollection(uid, 'invoices'), orderBy('created_at', 'desc')));
+    return snapshot.docs.map((d) => withId<Invoice>(d));
   } catch (err) {
     console.warn('Error fetching invoices:', err);
     return [];
+  }
+}
+
+// Get a single invoice, or null if it doesn't exist
+export async function fetchInvoice(id: string): Promise<Invoice | null> {
+  const uid = await requireUid();
+  const snapshot = await getDoc(userCollectionDoc(uid, 'invoices', id));
+  return snapshot.exists() ? withId<Invoice>(snapshot) : null;
+}
+
+// Update invoice fields
+export async function updateInvoice(id: string, updates: InvoiceUpdate): Promise<void> {
+  try {
+    const uid = await requireUid();
+    await updateDoc(userCollectionDoc(uid, 'invoices', id), { ...updates, updated_at: now() });
+  } catch (err) {
+    console.error('Error updating invoice:', err);
+    throw err;
   }
 }
 

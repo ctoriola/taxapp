@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@supabase/supabase-js": "^2.90.1",
+    "firebase": "12.19.0",
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
@@ -25,6 +25,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "emulators": "npx --yes firebase-tools@15.32.1 emulators:start --project demo-vatclear",
     "preview": "vite preview"
   }
 }

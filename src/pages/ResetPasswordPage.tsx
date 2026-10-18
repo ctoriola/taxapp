@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
-import { updatePassword } from '../services/authService';
+import { verifyResetCode, resetPassword } from '../services/authService';
 
 type LinkState = 'checking' | 'ready' | 'invalid';
 
 export default function ResetPasswordPage() {
   const [linkState, setLinkState] = useState<LinkState>('checking');
   const [linkError, setLinkError] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,29 +17,25 @@ export default function ResetPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
+  // Firebase reset emails link here as /reset-password?mode=resetPassword&oobCode=...
+  const oobCode = new URLSearchParams(window.location.search).get('oobCode') || '';
+
   useEffect(() => {
-    // Supabase puts errors (e.g. an expired link) in the URL hash or query string
-    const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search);
-    const urlError = params.get('error_description');
-    if (urlError) {
-      setLinkError(urlError.replace(/\+/g, ' '));
+    if (!oobCode) {
       setLinkState('invalid');
       return;
     }
 
-    // The Supabase client exchanges the recovery token in the URL for a session on load
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+    verifyResetCode(oobCode)
+      .then((accountEmail) => {
+        setEmail(accountEmail);
         setLinkState('ready');
-      }
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setLinkState((current) => (current === 'ready' || session ? 'ready' : 'invalid'));
-    });
-
-    return () => data.subscription.unsubscribe();
-  }, []);
+      })
+      .catch((err) => {
+        setLinkError(err instanceof Error ? err.message : '');
+        setLinkState('invalid');
+      });
+  }, [oobCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,9 +53,9 @@ export default function ResetPasswordPage() {
 
     setIsSubmitting(true);
     try {
-      await updatePassword(password);
+      await resetPassword(oobCode, password);
       setSuccess(true);
-      setTimeout(() => navigate('/dashboard', { replace: true }), 1500);
+      setTimeout(() => navigate('/login', { replace: true }), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update password. Please try again.');
     } finally {
@@ -76,6 +72,7 @@ export default function ResetPasswordPage() {
             VATClear
           </Link>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Choose a new password</h1>
+          {email && <p className="text-slate-600">for {email}</p>}
         </div>
 
         <div className="card p-8 mb-6">
@@ -114,7 +111,7 @@ export default function ResetPasswordPage() {
                   <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium text-emerald-900">Password updated</p>
-                    <p className="text-sm text-emerald-700">Taking you to your dashboard...</p>
+                    <p className="text-sm text-emerald-700">Taking you to sign in...</p>
                   </div>
                 </div>
               )}

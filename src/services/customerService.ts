@@ -1,4 +1,16 @@
-import { supabase } from '../lib/supabaseClient';
+import {
+  addDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
+import { currentUid, now, requireUid, userCollection, userCollectionDoc, userDoc, withId } from './db';
 
 export interface Customer {
   id: string;
@@ -23,45 +35,32 @@ export interface UserProfile {
   updated_at: string;
 }
 
-export async function saveUserProfile(profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>, userId?: string): Promise<UserProfile> {
+type ProfileInput = Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>;
+
+// Logos are stored inline on the profile document, which Firestore caps at 1 MB
+const MAX_LOGO_BYTES = 500 * 1024;
+
+export async function saveUserProfile(profile: ProfileInput, userId?: string): Promise<UserProfile> {
   try {
-    let user_id = userId;
-    
-    // If no userId provided, try to get it from auth
-    if (!user_id) {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No authenticated user');
-      }
-      user_id = user.id;
-    }
+    const uid = userId ?? (await requireUid());
+    const ref = userDoc(uid);
+    const existing = await getDoc(ref);
+    const timestamp = now();
 
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .upsert({
-        id: user_id,
-        email: profile.email,
-        full_name: profile.full_name,
-        business_name: profile.business_name,
-        business_type: profile.business_type,
-        phone: profile.phone,
-        location: profile.location,
-        logo_url: profile.logo_url || null,
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    const data = {
+      email: profile.email,
+      full_name: profile.full_name,
+      business_name: profile.business_name,
+      business_type: profile.business_type,
+      phone: profile.phone,
+      location: profile.location,
+      logo_url: profile.logo_url || null,
+      created_at: existing.exists() ? existing.data().created_at : timestamp,
+      updated_at: timestamp,
+    };
 
-    if (error) {
-      console.error('RLS/Database error details:', error);
-      if (error.code === 'PGRST301') {
-        throw new Error('Permission denied. Please try logging in again.');
-      }
-      throw error;
-    }
-
-    return data;
+    await setDoc(ref, data);
+    return { id: uid, ...data, logo_url: data.logo_url ?? undefined };
   } catch (err) {
     console.error('Error saving user profile:', err);
     throw err;
@@ -70,107 +69,35 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'id' | 'created
 
 export async function fetchUserProfile(): Promise<UserProfile | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const uid = await currentUid();
+    if (!uid) {
       return null;
     }
 
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.warn('Error fetching user profile:', error);
+    const snapshot = await getDoc(userDoc(uid));
+    if (!snapshot.exists()) {
       return null;
     }
 
-    return data || null;
+    const profile = withId<UserProfile & { logo_url?: string | null }>(snapshot);
+    return { ...profile, logo_url: profile.logo_url ?? undefined };
   } catch (err) {
     console.warn('Error fetching user profile:', err);
     return null;
   }
 }
 
-// Signup stores business details in auth metadata so the profile can be created on first
-// sign-in when email confirmation prevented saving it at signup time.
-export async function createProfileFromSignupMetadata(): Promise<UserProfile | null> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    const meta = user?.user_metadata;
-    if (!user || !meta?.business_name) {
-      return null;
-    }
-
-    return await saveUserProfile({
-      email: user.email || '',
-      full_name: meta.full_name || '',
-      business_name: meta.business_name,
-      business_type: meta.business_type || '',
-      phone: meta.phone || '',
-      location: meta.location || '',
-    }, user.id);
-  } catch (err) {
-    console.warn('Error creating profile from signup metadata:', err);
-    return null;
-  }
-}
-
-export async function updateUserProfile(profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>): Promise<UserProfile> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('No authenticated user');
-    }
-
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .upsert({
-        id: user.id,
-        email: profile.email,
-        full_name: profile.full_name,
-        business_name: profile.business_name,
-        business_type: profile.business_type,
-        phone: profile.phone,
-        location: profile.location,
-        logo_url: profile.logo_url || null,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
-      .select()
-      .maybeSingle();
-
-    if (error) {
-      console.warn('Error updating user profile:', error);
-      throw error;
-    }
-
-    if (!data) {
-      throw new Error('No data returned from update');
-    }
-
-    return data;
-  } catch (err) {
-    console.warn('Error updating user profile:', err);
-    throw err;
-  }
+export async function updateUserProfile(profile: ProfileInput): Promise<UserProfile> {
+  return saveUserProfile(profile);
 }
 
 export async function fetchCustomers(): Promise<Customer[]> {
   try {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const uid = await currentUid();
+    if (!uid) return [];
 
-    if (error) {
-      console.warn('Error fetching customers:', error);
-      return [];
-    }
-
-    return data || [];
+    const snapshot = await getDocs(query(userCollection(uid, 'customers'), orderBy('created_at', 'desc')));
+    return snapshot.docs.map((d) => withId<Customer>(d));
   } catch (err) {
     console.warn('Error fetching customers:', err);
     return [];
@@ -179,58 +106,38 @@ export async function fetchCustomers(): Promise<Customer[]> {
 
 export async function addCustomer(customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'>): Promise<Customer> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('No authenticated user');
-    }
+    const uid = await requireUid();
+    const customers = userCollection(uid, 'customers');
 
-    const { data, error } = await supabase
-      .from('customers')
-      .insert([
-        {
-          user_id: user.id,
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          tax_id: customer.tax_id || null,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error adding customer - Details:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        fullError: error
-      });
-      
-      // Provide user-friendly error message for duplicate email
-      if (error.code === '23505') {
+    if (customer.email) {
+      const duplicate = await getDocs(query(customers, where('email', '==', customer.email), limit(1)));
+      if (!duplicate.empty) {
         throw new Error('A customer with this email already exists');
       }
-      
-      throw error;
     }
 
-    return data;
+    const timestamp = now();
+    const data = {
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      tax_id: customer.tax_id || null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+
+    const ref = await addDoc(customers, data);
+    return { id: ref.id, ...data };
   } catch (err) {
-    console.error('Error adding customer - Full error:', err);
+    console.error('Error adding customer:', err);
     throw err;
   }
 }
 
 export async function deleteCustomer(id: string): Promise<void> {
   try {
-    const { error } = await supabase.from('customers').delete().eq('id', id);
-
-    if (error) {
-      console.warn('Error deleting customer:', error);
-      throw error;
-    }
+    const uid = await requireUid();
+    await deleteDoc(userCollectionDoc(uid, 'customers', id));
   } catch (err) {
     console.warn('Error deleting customer:', err);
     throw err;
@@ -242,25 +149,18 @@ export async function updateCustomer(
   customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'>
 ): Promise<Customer> {
   try {
-    const { data, error } = await supabase
-      .from('customers')
-      .update({
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        tax_id: customer.tax_id || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    const uid = await requireUid();
+    const ref = userCollectionDoc(uid, 'customers', id);
 
-    if (error) {
-      console.warn('Error updating customer:', error);
-      throw error;
-    }
+    await updateDoc(ref, {
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      tax_id: customer.tax_id || null,
+      updated_at: now(),
+    });
 
-    return data;
+    return withId<Customer>(await getDoc(ref));
   } catch (err) {
     console.warn('Error updating customer:', err);
     throw err;
@@ -268,6 +168,10 @@ export async function updateCustomer(
 }
 
 export async function uploadCompanyLogo(file: File): Promise<string> {
+  if (file.size > MAX_LOGO_BYTES) {
+    throw new Error('Logo must be smaller than 500 KB. Please choose a smaller image.');
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
