@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, User, Building2, Phone, MapPin, Upload, X } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { saveUserProfile, uploadCompanyLogo } from '../services/customerService';
 import { signUp as authSignUp } from '../services/authService';
 
@@ -23,7 +22,7 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const { signUp, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -110,12 +109,10 @@ export default function SignupPage() {
       return;
     }
 
+    setIsLoading(true);
     try {
       // Sign up with email and password
       const newUser = await authSignUp(formData.email, formData.password);
-      
-      // Wait a moment for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Upload logo if provided
       let logoUrl = '';
@@ -141,6 +138,8 @@ export default function SignupPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Signup failed. Please try again.';
       setError(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -149,7 +148,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">VAT Hub</h1>
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">VATClear</h1>
           <p className="text-slate-600">Create your account</p>
         </div>
 

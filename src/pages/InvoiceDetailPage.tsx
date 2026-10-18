@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Send, Edit2, Copy, CheckCircle, Printer } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { fetchInvoice, updateInvoice, Invoice } from '../services/invoiceService';
 import { useCustomers } from '../context/CustomersContext';
 
 // Print styles
@@ -34,30 +34,6 @@ const printStyles = `
   }
 `;
 
-interface LineItem {
-  description: string;
-  quantity: number;
-  unit_price: number;
-  line_total: number;
-}
-
-interface Invoice {
-  id: string;
-  invoice_number: string;
-  customer_id: string;
-  invoice_date: string;
-  due_date: string;
-  notes: string | null;
-  subtotal: number;
-  vat_amount: number;
-  total_amount: number;
-  apply_vat: boolean;
-  status: 'draft' | 'unpaid' | 'partially_paid' | 'paid' | 'overdue';
-  amount_paid: number;
-  line_items: LineItem[];
-  company_logo_url: string | null;
-  created_at: string;
-}
 
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -72,6 +48,7 @@ export default function InvoiceDetailPage() {
   const [isEditingPayment, setIsEditingPayment] = useState(false);
   const [amountPaid, setAmountPaid] = useState(0);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
 
   useEffect(() => {
     // Inject print styles
@@ -91,17 +68,7 @@ export default function InvoiceDetailPage() {
   const loadInvoice = async (invoiceId: string) => {
     try {
       setIsLoading(true);
-      const { data, error: fetchError } = await supabase
-        .from('invoices')
-        .select('*')
-        .eq('id', invoiceId)
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching invoice:', fetchError);
-        setError('Failed to load invoice');
-        return;
-      }
+      const data = await fetchInvoice(invoiceId);
 
       if (!data) {
         setError('Invoice not found');
@@ -198,9 +165,9 @@ export default function InvoiceDetailPage() {
     const opt = {
       margin: 10,
       filename: `${invoice.invoice_number}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
     };
 
     // Generate and save PDF
@@ -209,6 +176,16 @@ export default function InvoiceDetailPage() {
 
   const handleUpdatePayment = async () => {
     if (!invoice) return;
+
+    setPaymentError('');
+    if (!Number.isFinite(amountPaid) || amountPaid < 0) {
+      setPaymentError('Amount paid cannot be negative');
+      return;
+    }
+    if (amountPaid > invoice.total_amount) {
+      setPaymentError(`Amount paid cannot exceed the invoice total of ${formatCurrency(invoice.total_amount)}`);
+      return;
+    }
 
     try {
       setIsUpdatingPayment(true);
@@ -223,19 +200,10 @@ export default function InvoiceDetailPage() {
         newStatus = 'partially_paid';
       }
 
-      const { error } = await supabase
-        .from('invoices')
-        .update({
-          amount_paid: amountPaid,
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', invoice.id);
-
-      if (error) {
-        console.error('Error updating payment:', error);
-        return;
-      }
+      await updateInvoice(invoice.id, {
+        amount_paid: amountPaid,
+        status: newStatus,
+      });
 
       // Update local state
       setInvoice({
@@ -246,6 +214,7 @@ export default function InvoiceDetailPage() {
       setIsEditingPayment(false);
     } catch (err) {
       console.error('Error updating payment:', err);
+      setPaymentError('Could not save payment. Please try again.');
     } finally {
       setIsUpdatingPayment(false);
     }
@@ -497,7 +466,8 @@ export default function InvoiceDetailPage() {
                       <button
                         onClick={() => {
                           setIsEditingPayment(false);
-                          setAmountPaid(invoice.amount_paid);
+                          setAmountPaid(invoice.amount_paid || 0);
+                          setPaymentError('');
                         }}
                         className="px-3 py-1 bg-slate-300 text-slate-700 rounded text-sm hover:bg-slate-400 transition-colors"
                       >
@@ -506,6 +476,9 @@ export default function InvoiceDetailPage() {
                     </div>
                   )}
                 </div>
+                {paymentError && (
+                  <p className="text-xs text-red-600 mt-2 print:hidden">{paymentError}</p>
+                )}
                 {invoice.status === 'partially_paid' && (
                   <p className="text-xs text-slate-600 mt-2">
                     Outstanding: {formatCurrency(invoice.total_amount - (invoice.amount_paid || 0))}

@@ -5,6 +5,8 @@ import { CustomersProvider } from './context/CustomersContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import CustomersPage from './pages/CustomersPage';
 import AddCustomerPage from './pages/AddCustomerPage';
@@ -28,6 +30,8 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
             <Route path="/customers/add" element={<ProtectedRoute><AddCustomerPage /></ProtectedRoute>} />

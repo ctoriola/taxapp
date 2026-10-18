@@ -7,23 +7,8 @@ import CustomerSelect from '../components/CustomerSelect';
 import NewCustomerModal from '../components/NewCustomerModal';
 import InvoiceLineItem, { LineItem } from '../components/InvoiceLineItem';
 import InvoiceSummary from '../components/InvoiceSummary';
-import { supabase } from '../lib/supabaseClient';
+import { fetchInvoice, updateInvoice, Invoice } from '../services/invoiceService';
 
-interface Invoice {
-  id: string;
-  invoice_number: string;
-  customer_id: string;
-  invoice_date: string;
-  due_date: string;
-  notes: string | null;
-  subtotal: number;
-  vat_amount: number;
-  total_amount: number;
-  apply_vat: boolean;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
-  line_items: LineItem[];
-  company_logo_url: string | null;
-}
 
 export default function EditInvoicePage() {
   const { id } = useParams<{ id: string }>();
@@ -59,17 +44,7 @@ export default function EditInvoicePage() {
   const loadInvoice = async (invoiceId: string) => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('invoices')
-        .select('*')
-        .eq('id', invoiceId)
-        .single();
-
-      if (error) {
-        console.error('Error loading invoice:', error);
-        setErrorMessage('Failed to load invoice');
-        return;
-      }
+      const data = await fetchInvoice(invoiceId);
 
       if (!data) {
         setErrorMessage('Invoice not found');
@@ -88,7 +63,11 @@ export default function EditInvoicePage() {
       setDueDate(data.due_date);
       setNotes(data.notes || '');
       setApplyVat(data.apply_vat);
-      setLineItems(data.line_items || []);
+      // The line item editor keys rows by id, which saved items may not have
+      setLineItems((data.line_items || []).map((item, index) => ({
+        ...item,
+        id: item.id || `${Date.now()}-${index}`,
+      })));
     } catch (err) {
       console.error('Error loading invoice:', err);
       setErrorMessage('Failed to load invoice');
@@ -135,27 +114,17 @@ export default function EditInvoicePage() {
 
       const totals = calculateTotals();
 
-      const { error } = await supabase
-        .from('invoices')
-        .update({
-          customer_id: selectedCustomer,
-          invoice_date: invoiceDate,
-          due_date: dueDate,
-          notes: notes || null,
-          apply_vat: applyVat,
-          subtotal: totals.subtotal,
-          vat_amount: totals.vat,
-          total_amount: totals.total,
-          line_items: lineItems,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', invoice.id);
-
-      if (error) {
-        console.error('Error updating invoice:', error);
-        setErrorMessage('Failed to update invoice');
-        return;
-      }
+      await updateInvoice(invoice.id, {
+        customer_id: selectedCustomer,
+        invoice_date: invoiceDate,
+        due_date: dueDate,
+        notes,
+        apply_vat: applyVat,
+        subtotal: totals.subtotal,
+        vat_amount: totals.vat,
+        total_amount: totals.total,
+        line_items: lineItems,
+      });
 
       setSuccessMessage('Invoice updated successfully');
       setTimeout(() => {

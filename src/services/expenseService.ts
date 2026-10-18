@@ -1,8 +1,8 @@
-import { supabase } from '../lib/supabaseClient';
+import { addDoc, deleteDoc, getDoc, getDocs, orderBy, query, updateDoc, where } from 'firebase/firestore';
+import { now, requireUid, userCollection, userCollectionDoc, withId } from './db';
 
 export interface Expense {
   id: string;
-  user_id: string;
   description: string;
   amount: number;
   vat_amount: number;
@@ -20,17 +20,9 @@ export interface Expense {
 // Fetch all expenses for the authenticated user
 export async function fetchExpenses(): Promise<Expense[]> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
-
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('expense_date', { ascending: false });
-
-    if (error) throw error;
-    return data || [];
+    const uid = await requireUid();
+    const snapshot = await getDocs(query(userCollection(uid, 'expenses'), orderBy('expense_date', 'desc')));
+    return snapshot.docs.map((d) => withId<Expense>(d));
   } catch (error) {
     console.error('Error fetching expenses:', error);
     throw error;
@@ -40,18 +32,10 @@ export async function fetchExpenses(): Promise<Expense[]> {
 // Fetch a single expense
 export async function fetchExpense(id: string): Promise<Expense> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
-
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (error) throw error;
-    return data;
+    const uid = await requireUid();
+    const snapshot = await getDoc(userCollectionDoc(uid, 'expenses', id));
+    if (!snapshot.exists()) throw new Error('Expense not found');
+    return withId<Expense>(snapshot);
   } catch (error) {
     console.error('Error fetching expense:', error);
     throw error;
@@ -68,34 +52,29 @@ export async function createExpense(
   notes?: string
 ): Promise<Expense> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
+    const uid = await requireUid();
 
     // Calculate VAT (7.5%)
     const vat_amount = apply_vat ? amount * 0.075 : 0;
     const total_amount = amount + vat_amount;
+    const timestamp = now();
 
-    const { data, error } = await supabase
-      .from('expenses')
-      .insert([
-        {
-          user_id: user.id,
-          description,
-          amount,
-          vat_amount,
-          total_amount,
-          category,
-          expense_date,
-          apply_vat,
-          notes,
-          status: 'draft',
-        },
-      ])
-      .select()
-      .single();
+    const data = {
+      description,
+      amount,
+      vat_amount,
+      total_amount,
+      category: category as Expense['category'],
+      expense_date,
+      apply_vat,
+      notes: notes || '',
+      status: 'draft' as const,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
 
-    if (error) throw error;
-    return data;
+    const ref = await addDoc(userCollection(uid, 'expenses'), data);
+    return { id: ref.id, ...data };
   } catch (error) {
     console.error('Error creating expense:', error);
     throw error;
@@ -108,19 +87,9 @@ export async function updateExpenseStatus(
   status: 'draft' | 'pending' | 'approved' | 'rejected'
 ): Promise<Expense> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
-
-    const { data, error } = await supabase
-      .from('expenses')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    const uid = await requireUid();
+    await updateDoc(userCollectionDoc(uid, 'expenses', id), { status, updated_at: now() });
+    return fetchExpense(id);
   } catch (error) {
     console.error('Error updating expense status:', error);
     throw error;
@@ -133,37 +102,26 @@ export async function updateExpense(
   updates: Partial<Expense>
 ): Promise<Expense> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
+    const uid = await requireUid();
+
+    // Never let callers overwrite the document id or creation time
+    const { id: _id, created_at: _createdAt, ...fields } = updates;
+    let dataToUpdate: Partial<Expense> = { ...fields, updated_at: now() };
 
     // Recalculate VAT if amount or apply_vat changed
-    let dataToUpdate = { ...updates };
     if (updates.amount !== undefined || updates.apply_vat !== undefined) {
       const expense = await fetchExpense(id);
       const newAmount = updates.amount ?? expense.amount;
       const newApplyVat = updates.apply_vat ?? expense.apply_vat;
-      
+
       const vat_amount = newApplyVat ? newAmount * 0.075 : 0;
       const total_amount = newAmount + vat_amount;
 
-      dataToUpdate = {
-        ...dataToUpdate,
-        vat_amount,
-        total_amount,
-        updated_at: new Date().toISOString(),
-      };
+      dataToUpdate = { ...dataToUpdate, vat_amount, total_amount };
     }
 
-    const { data, error } = await supabase
-      .from('expenses')
-      .update(dataToUpdate)
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    await updateDoc(userCollectionDoc(uid, 'expenses', id), dataToUpdate);
+    return fetchExpense(id);
   } catch (error) {
     console.error('Error updating expense:', error);
     throw error;
@@ -173,16 +131,8 @@ export async function updateExpense(
 // Delete an expense
 export async function deleteExpense(id: string): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
-
-    const { error } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) throw error;
+    const uid = await requireUid();
+    await deleteDoc(userCollectionDoc(uid, 'expenses', id));
   } catch (error) {
     console.error('Error deleting expense:', error);
     throw error;
@@ -192,18 +142,9 @@ export async function deleteExpense(id: string): Promise<void> {
 // Get total approved expenses for VAT calculation
 export async function getApprovedExpensesTotal(): Promise<number> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
-
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('vat_amount')
-      .eq('user_id', user.id)
-      .eq('status', 'approved');
-
-    if (error) throw error;
-    
-    return (data || []).reduce((sum, exp) => sum + (exp.vat_amount || 0), 0);
+    const uid = await requireUid();
+    const snapshot = await getDocs(query(userCollection(uid, 'expenses'), where('status', '==', 'approved')));
+    return snapshot.docs.reduce((sum, d) => sum + (d.data().vat_amount || 0), 0);
   } catch (error) {
     console.error('Error getting approved expenses total:', error);
     throw error;

@@ -22,6 +22,8 @@ A professional, premium fintech SaaS application designed to help Nigerian busin
 - React Router
 - Lucide Icons
 - Vite
+- Firebase Authentication (email/password, password reset)
+- Cloud Firestore
 
 ## Getting Started
 
@@ -30,6 +32,32 @@ A professional, premium fintech SaaS application designed to help Nigerian busin
 ```bash
 npm install
 ```
+
+### Configure Firebase
+
+1. Create a project in the [Firebase console](https://console.firebase.google.com/).
+2. **Authentication > Sign-in method**: enable **Email/Password**.
+3. **Authentication > Settings > Authorized domains**: add your production domain (e.g. your Vercel domain).
+4. **Firestore Database**: create a database, then deploy the security rules in `firestore.rules`
+   (paste them into **Firestore > Rules**, or run `npx firebase-tools deploy --only firestore:rules --project <project-id>`).
+5. **Project settings > General > Your apps**: add a Web app and copy its config into `.env.local`
+   (see `.env.example`). Set the same variables in Vercel's project settings.
+6. Optional, for branded reset emails: **Authentication > Templates > Password reset > Customize action URL**,
+   set it to `https://<your-domain>/reset-password`. Without this, Firebase's hosted reset page is used.
+
+Data layout: each user's business profile is the document `users/{uid}`, with `customers`, `invoices`
+and `expenses` subcollections beneath it. The rules only let a signed-in user access their own `users/{uid}` tree.
+
+### Local Development Without a Firebase Project
+
+The Firebase emulators run Auth and Firestore locally (requires Java):
+
+```bash
+npm run emulators
+```
+
+Then set `VITE_USE_FIREBASE_EMULATORS=true` and `VITE_FIREBASE_PROJECT_ID=demo-vatclear` in `.env.local`
+(the other Firebase values can be any placeholder). Password reset links appear in the emulator log.
 
 ### Start Development Server
 
