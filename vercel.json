@@ -4,6 +4,9 @@
   "functions": {
     "api/ai-insights.ts": {
       "maxDuration": 30
+    },
+    "api/admin.ts": {
+      "maxDuration": 30
     }
   },
   "routes": [

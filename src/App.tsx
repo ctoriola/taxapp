@@ -5,6 +5,7 @@ import { DataProvider } from './context/DataContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import { startAnalytics } from './lib/analytics';
 
 // Every page except the landing and login screens is its own chunk, so the first visit only
 // downloads what it shows. The rest are prefetched in the background once the current page is
@@ -47,6 +48,8 @@ const CreateExpensePage = lazy(pageLoaders.CreateExpensePage);
 const ExpensesPage = lazy(pageLoaders.ExpensesPage);
 const ExpenseDetailPage = lazy(pageLoaders.ExpenseDetailPage);
 const ReportsPage = lazy(pageLoaders.ReportsPage);
+// Admin console: not prefetched, since regular users never open it
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 function PageLoading() {
   return (
@@ -73,6 +76,8 @@ function PrefetchPages() {
 }
 
 export default function App() {
+  useEffect(() => startAnalytics(), []);
+
   return (
     <AuthProvider>
       <DataProvider>
@@ -98,6 +103,7 @@ export default function App() {
             <Route path="/expenses/create" element={<ProtectedRoute><CreateExpensePage /></ProtectedRoute>} />
             <Route path="/expenses/:id" element={<ProtectedRoute><ExpenseDetailPage /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <PrefetchPages />

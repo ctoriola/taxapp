@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "firebase": "12.19.0",
+    "firebase-admin": "14.5.0",
     "html2pdf.js": "^0.14.0",
     "jose": "6.2.12",
     "lucide-react": "^0.263.1",
@@ -30,5 +31,8 @@
     "test": "vitest run",
     "emulators": "npx --yes firebase-tools@15.32.1 emulators:start --project demo-vatclear",
     "preview": "vite preview"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }
