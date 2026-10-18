@@ -1,6 +1,10 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { AuthUser, signIn, signUp, signOut, getCurrentUser, onAuthStateChange } from '../services/authService';
-import { fetchUserProfile, UserProfile } from '../services/customerService';
+import { fetchUserProfile, createProfileFromSignupMetadata, UserProfile } from '../services/customerService';
+
+async function loadProfile(): Promise<UserProfile | null> {
+  return (await fetchUserProfile()) ?? (await createProfileFromSignupMetadata());
+}
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -30,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Fetch user profile
         if (currentUser) {
-          const userProfile = await fetchUserProfile();
+          const userProfile = await loadProfile();
           setProfile(userProfile);
         }
       } catch (err) {
@@ -50,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Fetch user profile when auth changes
         if (authUser) {
-          const userProfile = await fetchUserProfile();
+          const userProfile = await loadProfile();
           setProfile(userProfile);
         } else {
           setProfile(null);
@@ -77,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(user);
       
       // Fetch user profile after sign in
-      const userProfile = await fetchUserProfile();
+      const userProfile = await loadProfile();
       setProfile(userProfile);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to sign in';

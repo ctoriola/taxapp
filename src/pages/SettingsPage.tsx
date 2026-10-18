@@ -449,7 +449,8 @@ export default function SettingsPage() {
         <div className="card-bento bg-emerald-50 border border-emerald-200/50 p-6">
           <h3 className="font-medium text-emerald-900 mb-2">Profile Information</h3>
           <p className="text-sm text-emerald-800">
-            Update your business details here. Your email address cannot be changed. To change your email or password, please contact support.
+            Update your business details here. Your email address cannot be changed. To change your password,{' '}
+            <Link to="/forgot-password" className="font-semibold underline">send yourself a reset link</Link>.
           </p>
         </div>
       </main>

@@ -72,6 +72,7 @@ export default function InvoiceDetailPage() {
   const [isEditingPayment, setIsEditingPayment] = useState(false);
   const [amountPaid, setAmountPaid] = useState(0);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
 
   useEffect(() => {
     // Inject print styles
@@ -198,9 +199,9 @@ export default function InvoiceDetailPage() {
     const opt = {
       margin: 10,
       filename: `${invoice.invoice_number}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
     };
 
     // Generate and save PDF
@@ -209,6 +210,16 @@ export default function InvoiceDetailPage() {
 
   const handleUpdatePayment = async () => {
     if (!invoice) return;
+
+    setPaymentError('');
+    if (!Number.isFinite(amountPaid) || amountPaid < 0) {
+      setPaymentError('Amount paid cannot be negative');
+      return;
+    }
+    if (amountPaid > invoice.total_amount) {
+      setPaymentError(`Amount paid cannot exceed the invoice total of ${formatCurrency(invoice.total_amount)}`);
+      return;
+    }
 
     try {
       setIsUpdatingPayment(true);
@@ -223,17 +234,19 @@ export default function InvoiceDetailPage() {
         newStatus = 'partially_paid';
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('invoices')
         .update({
           amount_paid: amountPaid,
           status: newStatus,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', invoice.id);
+        .eq('id', invoice.id)
+        .select('id');
 
-      if (error) {
+      if (error || !data?.length) {
         console.error('Error updating payment:', error);
+        setPaymentError('Could not save payment. Please try again.');
         return;
       }
 
@@ -246,6 +259,7 @@ export default function InvoiceDetailPage() {
       setIsEditingPayment(false);
     } catch (err) {
       console.error('Error updating payment:', err);
+      setPaymentError('Could not save payment. Please try again.');
     } finally {
       setIsUpdatingPayment(false);
     }
@@ -497,7 +511,8 @@ export default function InvoiceDetailPage() {
                       <button
                         onClick={() => {
                           setIsEditingPayment(false);
-                          setAmountPaid(invoice.amount_paid);
+                          setAmountPaid(invoice.amount_paid || 0);
+                          setPaymentError('');
                         }}
                         className="px-3 py-1 bg-slate-300 text-slate-700 rounded text-sm hover:bg-slate-400 transition-colors"
                       >
@@ -506,6 +521,9 @@ export default function InvoiceDetailPage() {
                     </div>
                   )}
                 </div>
+                {paymentError && (
+                  <p className="text-xs text-red-600 mt-2 print:hidden">{paymentError}</p>
+                )}
                 {invoice.status === 'partially_paid' && (
                   <p className="text-xs text-slate-600 mt-2">
                     Outstanding: {formatCurrency(invoice.total_amount - (invoice.amount_paid || 0))}

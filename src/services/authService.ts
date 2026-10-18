@@ -5,15 +5,25 @@ export interface AuthUser {
   email: string;
 }
 
-export async function signUp(email: string, password: string): Promise<AuthUser> {
+export interface SignUpResult extends AuthUser {
+  // True when Supabase requires the user to confirm their email before a session exists
+  needsEmailConfirmation: boolean;
+}
+
+export async function signUp(
+  email: string,
+  password: string,
+  metadata?: Record<string, string>
+): Promise<SignUpResult> {
   try {
-    console.log('Starting signup for:', email);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: metadata,
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
     });
-
-    console.log('Supabase response - Data:', data, 'Error:', error);
 
     if (error) {
       console.error('Error signing up:', error);
@@ -40,9 +50,15 @@ export async function signUp(email: string, password: string): Promise<AuthUser>
       throw new Error('No user returned from signup');
     }
 
+    // With email confirmation on, Supabase hides duplicate signups by returning a user with no identities
+    if (data.user.identities && data.user.identities.length === 0) {
+      throw new Error('This email is already registered. Please sign in instead.');
+    }
+
     return {
       id: data.user.id,
       email: data.user.email || '',
+      needsEmailConfirmation: !data.session,
     };
   } catch (err) {
     console.error('Signup error:', err);
@@ -80,6 +96,32 @@ export async function signIn(email: string, password: string): Promise<AuthUser>
   } catch (err) {
     console.error('Sign in error:', err);
     throw err;
+  }
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+
+  if (error) {
+    console.error('Error requesting password reset:', error);
+    if (error.message.includes('fetch')) {
+      throw new Error('Connection error. Please check your internet and try again.');
+    }
+    if (error.status === 429) {
+      throw new Error('Too many reset requests. Please wait a few minutes and try again.');
+    }
+    throw new Error(error.message || 'Could not send reset email. Please try again.');
+  }
+}
+
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+  if (error) {
+    console.error('Error updating password:', error);
+    throw new Error(error.message || 'Could not update password. Please try again.');
   }
 }
 

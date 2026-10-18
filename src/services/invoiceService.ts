@@ -8,6 +8,8 @@ export interface InvoiceLineItem {
   line_total: number;
 }
 
+export type InvoiceStatus = 'draft' | 'unpaid' | 'partially_paid' | 'paid' | 'overdue';
+
 export interface Invoice {
   id: string;
   user_id: string;
@@ -19,8 +21,9 @@ export interface Invoice {
   subtotal: number;
   vat_amount: number;
   total_amount: number;
+  amount_paid: number;
   apply_vat: boolean;
-  status: 'draft' | 'sent' | 'paid';
+  status: InvoiceStatus;
   line_items: InvoiceLineItem[];
   company_logo_url?: string;
   created_at: string;
@@ -134,6 +137,7 @@ export async function createInvoice(invoice: Omit<Invoice, 'id' | 'user_id' | 'c
         subtotal: invoice.subtotal,
         vat_amount: invoice.vat_amount,
         total_amount: invoice.total_amount,
+        amount_paid: invoice.amount_paid,
         apply_vat: invoice.apply_vat,
         status: invoice.status,
         line_items: invoice.line_items,

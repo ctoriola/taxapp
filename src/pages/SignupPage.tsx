@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, User, Building2, Phone, MapPin, Upload, X } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { saveUserProfile, uploadCompanyLogo } from '../services/customerService';
 import { signUp as authSignUp } from '../services/authService';
 
@@ -23,7 +22,8 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const { signUp, isLoading } = useAuth();
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -110,12 +110,22 @@ export default function SignupPage() {
       return;
     }
 
+    setIsLoading(true);
     try {
-      // Sign up with email and password
-      const newUser = await authSignUp(formData.email, formData.password);
-      
-      // Wait a moment for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Sign up with email and password. Business details go into auth metadata too, so the
+      // profile can still be created on first sign-in if email confirmation is required.
+      const newUser = await authSignUp(formData.email, formData.password, {
+        full_name: formData.fullName,
+        business_name: formData.businessName,
+        business_type: formData.businessType,
+        phone: formData.phone,
+        location: formData.location,
+      });
+
+      if (newUser.needsEmailConfirmation) {
+        setNeedsConfirmation(true);
+        return;
+      }
       
       // Upload logo if provided
       let logoUrl = '';
@@ -141,6 +151,8 @@ export default function SignupPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Signup failed. Please try again.';
       setError(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -149,7 +161,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">VAT Hub</h1>
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">VATClear</h1>
           <p className="text-slate-600">Create your account</p>
         </div>
 
@@ -166,6 +178,20 @@ export default function SignupPage() {
             <div>
               <p className="font-medium text-emerald-900">Account created successfully!</p>
               <p className="text-sm text-emerald-700">Redirecting to dashboard...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Email Confirmation Required */}
+        {needsConfirmation && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex gap-3">
+            <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-blue-900">Confirm your email</p>
+              <p className="text-sm text-blue-700">
+                We sent a confirmation link to {formData.email}. Click it, then{' '}
+                <Link to="/login" className="font-semibold underline">sign in</Link> to finish setting up your business.
+              </p>
             </div>
           </div>
         )}
@@ -274,7 +300,7 @@ export default function SignupPage() {
         )}
 
         {/* Step 2: Business Information */}
-        {step === 2 && (
+        {step === 2 && !needsConfirmation && (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Business Name */}
             <div>

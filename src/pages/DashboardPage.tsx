@@ -88,9 +88,10 @@ export default function DashboardPage() {
     }
   };
 
-  // Calculate metrics from invoices
-  const totalRevenue = invoices.reduce((sum, i) => sum + (i.amount_paid || 0), 0);
-  const totalVATCollected = invoices.reduce((sum, i) => sum + (i.vat_amount || 0), 0);
+  // Calculate metrics from invoices (drafts haven't been issued, so they don't count)
+  const issuedInvoices = invoices.filter(i => i.status !== 'draft');
+  const totalRevenue = issuedInvoices.reduce((sum, i) => sum + (i.amount_paid || 0), 0);
+  const totalVATCollected = issuedInvoices.reduce((sum, i) => sum + (i.vat_amount || 0), 0);
   
   // Calculate VAT paid from approved expenses
   const totalVATPaid = expenses
@@ -98,7 +99,7 @@ export default function DashboardPage() {
     .reduce((sum, e) => sum + (e.vat_amount || 0), 0);
   
   const totalPayableTax = totalVATCollected - totalVATPaid;
-  const totalOutstanding = invoices.reduce((sum, i) => sum + (i.total_amount - (i.amount_paid || 0)), 0);
+  const totalOutstanding = issuedInvoices.reduce((sum, i) => sum + Math.max(0, i.total_amount - (i.amount_paid || 0)), 0);
   const paidInvoices = invoices.filter(i => i.status === 'paid').length;
   const unpaidInvoices = invoices.filter(i => i.status === 'unpaid' || i.status === 'partially_paid').length;
 
@@ -108,7 +109,11 @@ export default function DashboardPage() {
     .filter(e => e.status === 'approved')
     .reduce((sum, e) => sum + e.amount, 0);
   const pendingExpenses = expenses.filter(e => e.status === 'pending').length;
-  const profit = totalRevenue - totalExpenses;
+  // Only approved expenses count against profit; drafts, pending and rejected ones don't
+  const approvedExpensesTotal = expenses
+    .filter(e => e.status === 'approved')
+    .reduce((sum, e) => sum + e.total_amount, 0);
+  const profit = totalRevenue - approvedExpensesTotal;
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-NG', {
@@ -235,16 +240,16 @@ export default function DashboardPage() {
     ...(totalOutstanding > 0 ? [{
       title: 'Outstanding Balance',
       description: `You have ${formatCurrency(totalOutstanding)} pending payment from customers.`,
-      type: 'warning',
+      type: 'warning' as const,
     }] : []),
     ...(invoices.length > 0 ? [{
       title: 'Tax Summary',
       description: `VAT Collected: ${formatCurrency(totalVATCollected)} | Payable VAT: ${formatCurrency(totalPayableTax)}`,
-      type: 'success',
+      type: 'success' as const,
     }] : [{
       title: 'No Invoices Yet',
       description: 'Create your first invoice to get started.',
-      type: 'info',
+      type: 'info' as const,
     }]),
   ];
 

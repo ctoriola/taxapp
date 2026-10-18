@@ -94,6 +94,30 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
   }
 }
 
+// Signup stores business details in auth metadata so the profile can be created on first
+// sign-in when email confirmation prevented saving it at signup time.
+export async function createProfileFromSignupMetadata(): Promise<UserProfile | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const meta = user?.user_metadata;
+    if (!user || !meta?.business_name) {
+      return null;
+    }
+
+    return await saveUserProfile({
+      email: user.email || '',
+      full_name: meta.full_name || '',
+      business_name: meta.business_name,
+      business_type: meta.business_type || '',
+      phone: meta.phone || '',
+      location: meta.location || '',
+    }, user.id);
+  } catch (err) {
+    console.warn('Error creating profile from signup metadata:', err);
+    return null;
+  }
+}
+
 export async function updateUserProfile(profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>): Promise<UserProfile> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
