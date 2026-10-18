@@ -3,13 +3,14 @@ import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import SigningInScreen from '../components/SigningInScreen';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { signIn, isLoading, user, profile } = useAuth();
+  const { signIn, isLoading, user, profile, isCompletingGoogleSignIn } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +34,10 @@ export default function LoginPage() {
   // Already signed in, e.g. returning from a Google redirect sign-in
   if (user && !isLoading) {
     return <Navigate to={profile ? '/dashboard' : '/complete-profile'} replace />;
+  }
+
+  if (isCompletingGoogleSignIn) {
+    return <SigningInScreen />;
   }
 
   return (

@@ -1,16 +1,29 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { AuthUser, signIn, signUp, signOut, signInWithGoogle, onAuthStateChange } from '../services/authService';
+import {
+  AuthUser,
+  signIn,
+  signUp,
+  signOut,
+  signInWithGoogle,
+  onAuthStateChange,
+  isReturningFromGoogle,
+  clearGoogleRedirectMarker,
+} from '../services/authService';
 import { fetchUserProfile, subscribeToUserProfile, UserProfile } from '../services/customerService';
 
 interface AuthContextType {
   user: AuthUser | null;
   profile: UserProfile | null;
   isLoading: boolean;
+  // True until Firebase has restored the session (or finished a returning Google sign-in)
+  isInitializing: boolean;
+  // This tab is coming back from Google sign-in and it hasn't completed yet
+  isCompletingGoogleSignIn: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  // Resolves to null if the user cancelled; hasProfile is false for first-time Google users
-  signInWithGoogle: () => Promise<{ hasProfile: boolean } | null>;
+  // Navigates away to Google; the user returns signed in. Rejects only if it can't start.
+  signInWithGoogle: () => Promise<void>;
   // Clears this device's cached data and reloads the app at redirectTo (default '/')
   signOut: (redirectTo?: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -22,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isCompletingGoogleSignIn] = useState(isReturningFromGoogle);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // it answers instantly from the device cache on reload and picks up edits anywhere.
     let unsubscribeProfile: (() => void) | null = null;
 
+    const finishLoading = () => {
+      setIsLoading(false);
+      setIsInitializing(false);
+      // Firebase has finished any returning Google sign-in by the time it reports auth state
+      clearGoogleRedirectMarker();
+    };
+
     const subscription = onAuthStateChange((authUser) => {
       unsubscribeProfile?.();
       unsubscribeProfile = null;
@@ -38,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!authUser) {
         setProfile(null);
         setUser(null);
-        setIsLoading(false);
+        finishLoading();
         return;
       }
 
@@ -47,13 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         (userProfile) => {
           setProfile(userProfile);
           setUser(authUser);
-          setIsLoading(false);
+          finishLoading();
         },
         (err) => {
           console.error('Error loading profile:', err);
           setProfile(null);
           setUser(authUser);
-          setIsLoading(false);
+          finishLoading();
         }
       );
     });
@@ -86,13 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleSignInWithGoogle = async () => {
     setError(null);
     try {
-      const googleUser = await signInWithGoogle();
-      if (!googleUser) return null;
-
-      const userProfile = await fetchUserProfile();
-      setProfile(userProfile);
-      setUser(googleUser);
-      return { hasProfile: userProfile !== null };
+      await signInWithGoogle();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to sign in with Google';
       setError(message);
@@ -148,6 +164,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         profile,
         isLoading,
+        isInitializing,
+        isCompletingGoogleSignIn: isCompletingGoogleSignIn && isInitializing,
         error,
         signIn: handleSignIn,
         signUp: handleSignUp,
