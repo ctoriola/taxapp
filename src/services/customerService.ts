@@ -1,16 +1,17 @@
 import {
-  addDoc,
   deleteDoc,
-  getDoc,
+  doc,
   getDocs,
+  getDocsFromCache,
   limit,
-  orderBy,
+  onSnapshot,
   query,
   setDoc,
   updateDoc,
   where,
+  FirestoreError,
 } from 'firebase/firestore';
-import { currentUid, now, requireUid, userCollection, userCollectionDoc, userDoc, withId } from './db';
+import { currentUid, getDocFast, now, requireUid, settleWrite, userCollection, userCollectionDoc, userDoc, withId } from './db';
 
 export interface Customer {
   id: string;
@@ -40,26 +41,26 @@ type ProfileInput = Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>;
 // Logos are stored inline on the profile document, which Firestore caps at 1 MB
 const MAX_LOGO_BYTES = 500 * 1024;
 
+function profileFields(profile: ProfileInput) {
+  return {
+    email: profile.email,
+    full_name: profile.full_name,
+    business_name: profile.business_name,
+    business_type: profile.business_type,
+    phone: profile.phone,
+    location: profile.location,
+    logo_url: profile.logo_url || null,
+  };
+}
+
+// Creates the profile for a new account (signup, or first Google sign-in)
 export async function saveUserProfile(profile: ProfileInput, userId?: string): Promise<UserProfile> {
   try {
     const uid = userId ?? (await requireUid());
-    const ref = userDoc(uid);
-    const existing = await getDoc(ref);
     const timestamp = now();
+    const data = { ...profileFields(profile), created_at: timestamp, updated_at: timestamp };
 
-    const data = {
-      email: profile.email,
-      full_name: profile.full_name,
-      business_name: profile.business_name,
-      business_type: profile.business_type,
-      phone: profile.phone,
-      location: profile.location,
-      logo_url: profile.logo_url || null,
-      created_at: existing.exists() ? existing.data().created_at : timestamp,
-      updated_at: timestamp,
-    };
-
-    await setDoc(ref, data);
+    await settleWrite(setDoc(userDoc(uid), data));
     return { id: uid, ...data, logo_url: data.logo_url ?? undefined };
   } catch (err) {
     console.error('Error saving user profile:', err);
@@ -74,33 +75,50 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
       return null;
     }
 
-    const snapshot = await getDoc(userDoc(uid));
-    if (!snapshot.exists()) {
-      return null;
-    }
-
-    const profile = withId<UserProfile & { logo_url?: string | null }>(snapshot);
-    return { ...profile, logo_url: profile.logo_url ?? undefined };
+    const snapshot = await getDocFast(userDoc(uid));
+    return snapshot.exists() ? toProfile(snapshot) : null;
   } catch (err) {
     console.warn('Error fetching user profile:', err);
     return null;
   }
 }
 
-export async function updateUserProfile(profile: ProfileInput): Promise<UserProfile> {
-  return saveUserProfile(profile);
+function toProfile(snapshot: Parameters<typeof withId>[0]): UserProfile {
+  const profile = withId<UserProfile & { logo_url?: string | null }>(snapshot);
+  return { ...profile, logo_url: profile.logo_url ?? undefined };
 }
 
-export async function fetchCustomers(): Promise<Customer[]> {
-  try {
-    const uid = await currentUid();
-    if (!uid) return [];
+// Live profile updates. Waits for the server before reporting "no profile", so a cold cache
+// isn't mistaken for a user who hasn't set one up yet.
+export function subscribeToUserProfile(
+  uid: string,
+  onChange: (profile: UserProfile | null) => void,
+  onError: (error: FirestoreError) => void
+): () => void {
+  return onSnapshot(
+    userDoc(uid),
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      if (snapshot.exists()) {
+        onChange(toProfile(snapshot));
+      } else if (!snapshot.metadata.fromCache) {
+        onChange(null);
+      }
+    },
+    onError
+  );
+}
 
-    const snapshot = await getDocs(query(userCollection(uid, 'customers'), orderBy('created_at', 'desc')));
-    return snapshot.docs.map((d) => withId<Customer>(d));
+// Updates an existing profile. Merging keeps created_at without reading the document first.
+export async function updateUserProfile(profile: ProfileInput): Promise<UserProfile> {
+  try {
+    const uid = await requireUid();
+    const ref = userDoc(uid);
+    await settleWrite(setDoc(ref, { ...profileFields(profile), updated_at: now() }, { merge: true }));
+    return toProfile(await getDocFast(ref));
   } catch (err) {
-    console.warn('Error fetching customers:', err);
-    return [];
+    console.warn('Error updating user profile:', err);
+    throw err;
   }
 }
 
@@ -110,7 +128,9 @@ export async function addCustomer(customer: Omit<Customer, 'id' | 'created_at' |
     const customers = userCollection(uid, 'customers');
 
     if (customer.email) {
-      const duplicate = await getDocs(query(customers, where('email', '==', customer.email), limit(1)));
+      // The customers listener keeps the cache complete, so check there first (instant)
+      const duplicateQuery = query(customers, where('email', '==', customer.email), limit(1));
+      const duplicate = await getDocsFromCache(duplicateQuery).catch(() => getDocs(duplicateQuery));
       if (!duplicate.empty) {
         throw new Error('A customer with this email already exists');
       }
@@ -126,7 +146,8 @@ export async function addCustomer(customer: Omit<Customer, 'id' | 'created_at' |
       updated_at: timestamp,
     };
 
-    const ref = await addDoc(customers, data);
+    const ref = doc(customers);
+    await settleWrite(setDoc(ref, data));
     return { id: ref.id, ...data };
   } catch (err) {
     console.error('Error adding customer:', err);
@@ -137,7 +158,7 @@ export async function addCustomer(customer: Omit<Customer, 'id' | 'created_at' |
 export async function deleteCustomer(id: string): Promise<void> {
   try {
     const uid = await requireUid();
-    await deleteDoc(userCollectionDoc(uid, 'customers', id));
+    await settleWrite(deleteDoc(userCollectionDoc(uid, 'customers', id)));
   } catch (err) {
     console.warn('Error deleting customer:', err);
     throw err;
@@ -152,15 +173,15 @@ export async function updateCustomer(
     const uid = await requireUid();
     const ref = userCollectionDoc(uid, 'customers', id);
 
-    await updateDoc(ref, {
+    await settleWrite(updateDoc(ref, {
       name: customer.name,
       email: customer.email,
       phone: customer.phone,
       tax_id: customer.tax_id || null,
       updated_at: now(),
-    });
+    }));
 
-    return withId<Customer>(await getDoc(ref));
+    return withId<Customer>(await getDocFast(ref));
   } catch (err) {
     console.warn('Error updating customer:', err);
     throw err;

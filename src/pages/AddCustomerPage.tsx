@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, User, Mail, Phone, FileText, AlertCircle, Menu, X, LogOut, Settings, Bell, Search, Home } from 'lucide-react';
-import { useCustomers } from '../context/CustomersContext';
+import { useCustomers } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 
 export default function AddCustomerPage() {

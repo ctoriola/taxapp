@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Send, Edit2, Copy, CheckCircle, Printer } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
 import { useAuth } from '../context/AuthContext';
-import { fetchInvoice, updateInvoice, Invoice } from '../services/invoiceService';
-import { useCustomers } from '../context/CustomersContext';
+import { updateInvoice } from '../services/invoiceService';
+import { useCustomers, useInvoices } from '../context/DataContext';
 
 // Print styles
 const printStyles = `
@@ -41,9 +40,9 @@ export default function InvoiceDetailPage() {
   const { profile } = useAuth();
   const { customers } = useCustomers();
   
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { invoices, isLoading, error: loadError } = useInvoices();
+  const invoice = invoices.find((i) => i.id === id) ?? null;
+  const error = loadError || (!isLoading && !invoice ? 'Invoice not found' : '');
   const [copiedId, setCopiedId] = useState(false);
   const [isEditingPayment, setIsEditingPayment] = useState(false);
   const [amountPaid, setAmountPaid] = useState(0);
@@ -56,34 +55,16 @@ export default function InvoiceDetailPage() {
     styleSheet.textContent = printStyles;
     document.head.appendChild(styleSheet);
 
-    if (id) {
-      loadInvoice(id);
-    }
-
     return () => {
       styleSheet.remove();
     };
-  }, [id]);
+  }, []);
 
-  const loadInvoice = async (invoiceId: string) => {
-    try {
-      setIsLoading(true);
-      const data = await fetchInvoice(invoiceId);
-
-      if (!data) {
-        setError('Invoice not found');
-        return;
-      }
-
-      setInvoice(data);
-      setAmountPaid(data.amount_paid || 0);
-    } catch (err) {
-      console.error('Error loading invoice:', err);
-      setError('Failed to load invoice');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Keep the payment field in step with the stored invoice, unless it's being edited
+  const storedAmountPaid = invoice?.amount_paid || 0;
+  useEffect(() => {
+    if (!isEditingPayment) setAmountPaid(storedAmountPaid);
+  }, [storedAmountPaid, isEditingPayment]);
 
   const getCustomerName = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
@@ -139,7 +120,7 @@ export default function InvoiceDetailPage() {
     navigate(`/invoices/${id}/edit`);
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!invoice) return;
 
     // Get the invoice document element
@@ -170,7 +151,8 @@ export default function InvoiceDetailPage() {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
     };
 
-    // Generate and save PDF
+    // The PDF library is large, so it's only downloaded when someone actually exports
+    const { default: html2pdf } = await import('html2pdf.js');
     html2pdf().set(opt).from(clonedElement).save();
   };
 
@@ -205,12 +187,7 @@ export default function InvoiceDetailPage() {
         status: newStatus,
       });
 
-      // Update local state
-      setInvoice({
-        ...invoice,
-        amount_paid: amountPaid,
-        status: newStatus,
-      });
+      // The live store picks up the change, so there's no local copy to update
       setIsEditingPayment(false);
     } catch (err) {
       console.error('Error updating payment:', err);

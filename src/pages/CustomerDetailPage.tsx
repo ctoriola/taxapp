@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, Trash2, Mail, Phone, Building2, FileText, DollarSign, AlertCircle } from 'lucide-react';
-import { useCustomers } from '../context/CustomersContext';
-import { fetchInvoices } from '../services/invoiceService';
+import { useCustomers, useInvoices } from '../context/DataContext';
 
 interface Customer {
   id: string;
@@ -28,43 +27,13 @@ interface Invoice {
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { customers } = useCustomers();
+  const { customers, isLoading: customersLoading, error: customersError } = useCustomers();
+  const { invoices: allInvoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
 
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (id) {
-      loadCustomerData(id);
-    }
-  }, [id]);
-
-  const loadCustomerData = async (customerId: string) => {
-    try {
-      setIsLoading(true);
-
-      // Find customer from context
-      const foundCustomer = customers.find(c => c.id === customerId);
-      if (!foundCustomer) {
-        setError('Customer not found');
-        return;
-      }
-
-      setCustomer(foundCustomer);
-
-      // Load all invoices and filter by customer
-      const allInvoices = await fetchInvoices();
-      const customerInvoices = allInvoices.filter(inv => inv.customer_id === customerId);
-      setInvoices(customerInvoices);
-    } catch (err) {
-      console.error('Error loading customer data:', err);
-      setError('Failed to load customer details');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const customer: Customer | null = customers.find(c => c.id === id) ?? null;
+  const invoices: Invoice[] = allInvoices.filter(inv => inv.customer_id === id);
+  const isLoading = customersLoading || invoicesLoading;
+  const error = customersError || invoicesError || (!isLoading && !customer ? 'Customer not found' : '');
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-NG', {

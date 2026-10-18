@@ -139,9 +139,7 @@ export default function SignupPage() {
       await refreshProfile();
       
       setSuccess(true);
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Signup failed. Please try again.';
       setError(message);

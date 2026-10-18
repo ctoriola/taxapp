@@ -12,7 +12,8 @@ import {
   User,
 } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
-import { auth } from '../lib/firebase';
+import { clearIndexedDbPersistence, terminate } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 export interface AuthUser {
   id: string;
@@ -135,8 +136,18 @@ export async function resetPassword(code: string, newPassword: string): Promise<
   }
 }
 
-export async function signOut(): Promise<void> {
+// Signs out and wipes this device's cached copy of the user's data (it's financial data,
+// and the next person on a shared computer shouldn't see it). Clearing the cache requires
+// shutting Firestore down, so the app reloads at redirectTo afterwards.
+export async function signOut(redirectTo = '/'): Promise<void> {
   await firebaseSignOut(auth);
+  try {
+    await terminate(db);
+    await clearIndexedDbPersistence(db);
+  } catch (err) {
+    console.warn('Could not clear cached data:', err);
+  }
+  window.location.assign(redirectTo);
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {

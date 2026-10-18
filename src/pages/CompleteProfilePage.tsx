@@ -95,8 +95,7 @@ export default function CompleteProfilePage() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login', { replace: true });
+    await signOut('/login');
   };
 
   return (

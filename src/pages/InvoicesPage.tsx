@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Plus, FileText, Eye, Trash2, Send, TrendingUp, AlertCircle, CheckCircle2, DollarSign, Menu, X, LogOut, Settings, Bell, Search, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { fetchInvoices } from '../services/invoiceService';
+import { useInvoices } from '../context/DataContext';
+import DataErrorBanner from '../components/DataErrorBanner';
 
 interface Invoice {
   id: string;
@@ -20,8 +21,7 @@ interface Invoice {
 export default function InvoicesPage() {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { invoices, isLoading, error: loadError } = useInvoices();
   const [activeTab, setActiveTab] = useState<'all' | 'draft' | 'unpaid' | 'paid'>('all');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,24 +37,8 @@ export default function InvoicesPage() {
   };
 
   useEffect(() => {
-    loadInvoices();
-  }, []);
-
-  useEffect(() => {
     setCurrentPage(1);
   }, [activeTab]);
-
-  const loadInvoices = async () => {
-    try {
-      setIsLoading(true);
-      const data = await fetchInvoices();
-      setInvoices(data);
-    } catch (err) {
-      console.error('Error loading invoices:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const filteredInvoices = invoices.filter(invoice => {
     if (activeTab === 'draft') return invoice.status === 'draft';
@@ -229,6 +213,8 @@ export default function InvoicesPage() {
             Create Invoice
           </button>
         </div>
+
+        <DataErrorBanner errors={[loadError]} className="mb-6" />
         {/* Tabs */}
         <div className="flex gap-2 mb-8 border-b border-stone-200/50">
           <button

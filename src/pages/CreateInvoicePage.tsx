@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useCustomers } from '../context/CustomersContext';
+import { useCustomers } from '../context/DataContext';
 import { Plus, Save, Send, X as XIcon, AlertCircle, CheckCircle, Menu, LogOut, Settings, Bell, Search, Home } from 'lucide-react';
 import CustomerSelect from '../components/CustomerSelect';
 import NewCustomerModal from '../components/NewCustomerModal';
@@ -12,7 +12,7 @@ import { createInvoice, generateInvoiceNumber } from '../services/invoiceService
 export default function CreateInvoicePage() {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
-  const { customers, refreshCustomers } = useCustomers();
+  const { customers } = useCustomers();
 
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
@@ -36,15 +36,10 @@ export default function CreateInvoicePage() {
     }
   };
 
-  // Generate invoice number and load customers on mount
+  // Generate invoice number on mount
   useEffect(() => {
-    const generateNumber = async () => {
-      const number = await generateInvoiceNumber();
-      setInvoiceNumber(number);
-    };
-    generateNumber();
-    refreshCustomers();
-  }, [refreshCustomers]);
+    setInvoiceNumber(generateInvoiceNumber());
+  }, []);
 
   // Set default due date to 30 days from now
   useEffect(() => {
@@ -115,9 +110,7 @@ export default function CreateInvoicePage() {
         status: 'draft',
         line_items: lineItems.map(({ id, ...item }) => item),
       });
-
-      setSuccessMessage('Invoice saved as draft successfully!');
-      setTimeout(() => navigate('/invoices', { replace: true }), 1500);
+      navigate('/invoices', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save invoice';
       setErrorMessage(message);
@@ -165,9 +158,7 @@ export default function CreateInvoicePage() {
         status: 'unpaid',
         line_items: lineItems.map(({ id, ...item }) => item),
       });
-
-      setSuccessMessage('Invoice saved successfully!');
-      setTimeout(() => navigate('/invoices', { replace: true }), 1500);
+      navigate('/invoices', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save invoice';
       setErrorMessage(message);

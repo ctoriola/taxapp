@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, Settings, TrendingUp, AlertCircle, ArrowUpRight, ArrowDownLeft, Users, FileText, Bell, Search, Plus, Home } from 'lucide-react';
-import { useCustomers } from '../context/CustomersContext';
+import { useCustomers, useInvoices, useExpenses } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { fetchInvoices } from '../services/invoiceService';
-import { fetchExpenses } from '../services/expenseService';
+import DataErrorBanner from '../components/DataErrorBanner';
 
 interface NavItem {
   label: string;
@@ -31,18 +30,11 @@ interface InsightCard {
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { customers, refreshCustomers, isLoading } = useCustomers();
+  const { customers, isLoading } = useCustomers();
+  const { invoices, error: invoicesError } = useInvoices();
+  const { expenses, error: expensesError } = useExpenses();
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [invoicesLoading, setInvoicesLoading] = useState(true);
-
-  useEffect(() => {
-    refreshCustomers();
-    loadInvoices();
-    loadExpenses();
-  }, [refreshCustomers]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,27 +49,6 @@ export default function DashboardPage() {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [notificationsOpen]);
-
-  const loadInvoices = async () => {
-    try {
-      setInvoicesLoading(true);
-      const data = await fetchInvoices();
-      setInvoices(data);
-    } catch (err) {
-      console.error('Error loading invoices:', err);
-    } finally {
-      setInvoicesLoading(false);
-    }
-  };
-
-  const loadExpenses = async () => {
-    try {
-      const data = await fetchExpenses();
-      setExpenses(data);
-    } catch (err) {
-      console.error('Error loading expenses:', err);
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -469,6 +440,8 @@ export default function DashboardPage() {
               Create Invoice
             </Link>
           </div>
+
+          <DataErrorBanner errors={[invoicesError, expensesError]} />
 
           {/* Primary Stats - Bento Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

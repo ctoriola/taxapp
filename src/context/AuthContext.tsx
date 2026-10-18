@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { AuthUser, signIn, signUp, signOut, signInWithGoogle, onAuthStateChange } from '../services/authService';
-import { fetchUserProfile, UserProfile } from '../services/customerService';
+import { fetchUserProfile, subscribeToUserProfile, UserProfile } from '../services/customerService';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -11,7 +11,8 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>;
   // Resolves to null if the user cancelled; hasProfile is false for first-time Google users
   signInWithGoogle: () => Promise<{ hasProfile: boolean } | null>;
-  signOut: () => Promise<void>;
+  // Clears this device's cached data and reloads the app at redirectTo (default '/')
+  signOut: (redirectTo?: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -25,16 +26,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Firebase reports the restored session (or none) first, then every sign-in/out.
-    // The user is only published once their profile has loaded, so routes never see a
-    // signed-in user whose profile is still in flight.
-    const subscription = onAuthStateChange(async (authUser) => {
-      const userProfile = authUser ? await fetchUserProfile() : null;
-      setProfile(userProfile);
-      setUser(authUser);
-      setIsLoading(false);
+    // The user is only published once their profile is known, so routes never see a
+    // signed-in user whose profile is still in flight. The profile is a live listener:
+    // it answers instantly from the device cache on reload and picks up edits anywhere.
+    let unsubscribeProfile: (() => void) | null = null;
+
+    const subscription = onAuthStateChange((authUser) => {
+      unsubscribeProfile?.();
+      unsubscribeProfile = null;
+
+      if (!authUser) {
+        setProfile(null);
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      unsubscribeProfile = subscribeToUserProfile(
+        authUser.id,
+        (userProfile) => {
+          setProfile(userProfile);
+          setUser(authUser);
+          setIsLoading(false);
+        },
+        (err) => {
+          console.error('Error loading profile:', err);
+          setProfile(null);
+          setUser(authUser);
+          setIsLoading(false);
+        }
+      );
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      unsubscribeProfile?.();
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignIn = async (email: string, password: string) => {
@@ -90,11 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (redirectTo = '/') => {
     setIsLoading(true);
     setError(null);
     try {
-      await signOut();
+      await signOut(redirectTo);
       setUser(null);
       setProfile(null);
     } catch (err) {

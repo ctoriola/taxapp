@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Plus, Search, TrendingDown, DollarSign, AlertCircle, CheckCircle2, Clock, XCircle, Menu, X, LogOut, Settings, Bell, Home } from 'lucide-react';
-import { fetchExpenses, Expense } from '../services/expenseService';
+import { Expense } from '../services/expenseService';
+import { useExpenses } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 
 type TabType = 'all' | 'draft' | 'pending' | 'approved' | 'rejected';
@@ -39,9 +40,7 @@ function getStatusBadge(status: string) {
 export default function ExpensesPage() {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { expenses, isLoading, error } = useExpenses();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [showVATOnly, setShowVATOnly] = useState(false);
@@ -59,24 +58,8 @@ export default function ExpensesPage() {
   };
 
   useEffect(() => {
-    loadExpenses();
-  }, []);
-
-  useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchQuery, showVATOnly]);
-
-  const loadExpenses = async () => {
-    try {
-      setIsLoading(true);
-      const data = await fetchExpenses();
-      setExpenses(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load expenses');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Filter expenses by tab
   const filteredByStatus = expenses.filter((expense) => {

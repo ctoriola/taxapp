@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, Trash2, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react';
-import { fetchExpense, updateExpenseStatus, deleteExpense, Expense } from '../services/expenseService';
+import { updateExpenseStatus, deleteExpense } from '../services/expenseService';
+import { useExpenses } from '../context/DataContext';
 
 const CATEGORY_LABELS: Record<string, string> = {
   office_supplies: 'Office Supplies',
@@ -37,38 +38,20 @@ export default function ExpenseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [expense, setExpense] = useState<Expense | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { expenses, isLoading, error: loadError } = useExpenses();
+  const expense = expenses.find((e) => e.id === id) ?? null;
+  const [actionError, setActionError] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
-
-  useEffect(() => {
-    if (id) {
-      loadExpense(id);
-    }
-  }, [id]);
-
-  const loadExpense = async (expenseId: string) => {
-    try {
-      setIsLoading(true);
-      const data = await fetchExpense(expenseId);
-      setExpense(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load expense');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const error = loadError || actionError || (!isLoading && !expense ? 'Expense not found' : '');
 
   const handleStatusUpdate = async (newStatus: 'draft' | 'pending' | 'approved' | 'rejected') => {
     if (!expense) return;
 
     try {
       setIsUpdating(true);
-      const updated = await updateExpenseStatus(expense.id, newStatus);
-      setExpense(updated);
+      await updateExpenseStatus(expense.id, newStatus);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update status');
+      setActionError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setIsUpdating(false);
     }
@@ -86,7 +69,7 @@ export default function ExpenseDetailPage() {
       await deleteExpense(expense.id);
       navigate('/expenses');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete expense');
+      setActionError(err instanceof Error ? err.message : 'Failed to delete expense');
       setIsUpdating(false);
     }
   };
@@ -118,7 +101,7 @@ export default function ExpenseDetailPage() {
         </div>
         <main className="max-w-4xl mx-auto p-6 lg:p-10">
           <div className="card p-12 text-center">
-            <p className="text-slate-600 mb-6">This expense could not be found.</p>
+            <p className="text-slate-600 mb-6">{loadError || 'This expense could not be found.'}</p>
             <button
               onClick={() => navigate('/expenses')}
               className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"

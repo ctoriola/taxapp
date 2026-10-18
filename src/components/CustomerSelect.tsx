@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
-import { useCustomers } from '../context/CustomersContext';
+import { useCustomers } from '../context/DataContext';
 
 interface CustomerSelectProps {
   selectedCustomerId: string | null;
