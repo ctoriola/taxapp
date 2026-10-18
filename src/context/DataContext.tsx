@@ -5,6 +5,7 @@ import { describeFirestoreError, onBackgroundWriteError, subscribeToUserCollecti
 import { addCustomer, deleteCustomer, updateCustomer, Customer } from '../services/customerService';
 import { Invoice } from '../services/invoiceService';
 import { Expense } from '../services/expenseService';
+import { VatReturnRecord } from '../services/vatReturnService';
 
 // One live subscription per collection for the whole session. Pages read from here, so
 // navigating between them is instant and every page sees new data as soon as it's written.
@@ -48,6 +49,7 @@ interface DataContextType {
   customers: LiveCollection<Customer>;
   invoices: LiveCollection<Invoice>;
   expenses: LiveCollection<Expense>;
+  vatReturns: LiveCollection<VatReturnRecord>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -59,13 +61,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const customers = useLiveCollection<Customer>(uid, 'customers', 'created_at', 'customers');
   const invoices = useLiveCollection<Invoice>(uid, 'invoices', 'created_at', 'invoices');
   const expenses = useLiveCollection<Expense>(uid, 'expenses', 'expense_date', 'expenses');
+  const vatReturns = useLiveCollection<VatReturnRecord>(uid, 'vatReturns', 'period', 'filed VAT returns');
 
   // A save that outlived its confirmation timeout and was then rejected by the server
   const [backgroundError, setBackgroundError] = useState<string | null>(null);
   useEffect(() => onBackgroundWriteError(setBackgroundError), []);
 
   return (
-    <DataContext.Provider value={{ customers, invoices, expenses }}>
+    <DataContext.Provider value={{ customers, invoices, expenses, vatReturns }}>
       {children}
       {backgroundError && (
         <div role="alert" className="fixed bottom-4 inset-x-4 sm:left-auto sm:right-4 sm:max-w-sm z-50 bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-3 shadow-lg">
@@ -96,6 +99,11 @@ export function useInvoices() {
 export function useExpenses() {
   const { expenses } = useData();
   return { expenses: expenses.items, isLoading: expenses.isLoading, error: expenses.error };
+}
+
+export function useVatReturns() {
+  const { vatReturns } = useData();
+  return { vatReturns: vatReturns.items, isLoading: vatReturns.isLoading, error: vatReturns.error };
 }
 
 export function useCustomers() {

@@ -13,8 +13,8 @@ import {
 import { auth, db } from '../lib/firebase';
 
 // All of a user's data lives under users/{uid}: the profile is the document itself and
-// customers, invoices and expenses are subcollections. Security rules key off that uid.
-export type UserCollection = 'customers' | 'invoices' | 'expenses';
+// customers, invoices, expenses and vatReturns are subcollections. Security rules key off that uid.
+export type UserCollection = 'customers' | 'invoices' | 'expenses' | 'vatReturns';
 
 export async function requireUid(): Promise<string> {
   await auth.authStateReady();

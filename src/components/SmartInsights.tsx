@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, AlertCircle, Info, CheckCircle2, ChevronRight } from 'lucide-react';
 import type { Insight, InsightSeverity } from '../lib/finance';
+import type { AiFacts } from '../lib/aiFacts';
+import AiAssistant from './AiAssistant';
 
 const STYLES: Record<InsightSeverity, { box: string; title: string; text: string; icon: React.ReactNode }> = {
   urgent: { box: 'border-l-red-500 bg-red-50', title: 'text-red-900', text: 'text-red-800', icon: <AlertTriangle className="w-4 h-4 text-red-600" /> },
@@ -12,7 +14,7 @@ const STYLES: Record<InsightSeverity, { box: string; title: string; text: string
 
 const INITIALLY_SHOWN = 4;
 
-export default function SmartInsights({ insights }: { insights: Insight[] }) {
+export default function SmartInsights({ insights, aiFacts }: { insights: Insight[]; aiFacts: AiFacts }) {
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? insights : insights.slice(0, INITIALLY_SHOWN);
 
@@ -49,6 +51,7 @@ export default function SmartInsights({ insights }: { insights: Insight[] }) {
       <p className="mt-6 text-xs text-slate-500">
         Calculated from your invoices and expenses. These are estimates, not tax advice; confirm figures with a tax professional before filing.
       </p>
+      <AiAssistant facts={aiFacts} />
     </div>
   );
 }

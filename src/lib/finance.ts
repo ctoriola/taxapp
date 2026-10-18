@@ -172,11 +172,11 @@ export function summarize(invoices: Invoice[], expenses: Expense[], today: Date 
 }
 
 // The VAT return the user should be thinking about now: last month's (due on the 21st of this
-// month) until its due date passes, then this month's.
-export function upcomingVatReturn(summary: FinanceSummary, today: Date = new Date()): VatPeriod {
+// month) until it's filed or its due date passes, then this month's.
+export function upcomingVatReturn(summary: FinanceSummary, today: Date = new Date(), filedPeriods: Set<string> = new Set()): VatPeriod {
   const lastMonth = periodKey(new Date(today.getFullYear(), today.getMonth() - 1, 1));
   const thisMonth = periodKey(today);
-  const key = today.getDate() <= VAT_RETURN_DAY ? lastMonth : thisMonth;
+  const key = today.getDate() <= VAT_RETURN_DAY && !filedPeriods.has(lastMonth) ? lastMonth : thisMonth;
   return (
     summary.periods.find((p) => p.key === key) ?? {
       key,
@@ -189,6 +189,31 @@ export function upcomingVatReturn(summary: FinanceSummary, today: Date = new Dat
       dueDate: vatDueDate(key),
     }
   );
+}
+
+// Months with VAT activity whose return due date has passed but which aren't marked as filed
+export function unfiledPastDueReturns(summary: FinanceSummary, today: Date, filedPeriods: Set<string>): VatPeriod[] {
+  return summary.periods
+    .filter((p) => !filedPeriods.has(p.key) && daysBetween(today, p.dueDate) < 0)
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+// Goods and services that are generally zero-rated or exempt from VAT in Nigeria (basic food,
+// medical and pharmaceutical products, educational materials, baby and sanitary products,
+// agricultural inputs). Used only to prompt a check, never to decide.
+const LIKELY_VAT_FREE = /\b(rice|beans|yams?|garri|cassava|maize|millet|sorghum|bread|flour|fish|meat|chicken|eggs?|milk|fruits?|vegetables?|tomato(es)?|onions?|drugs?|medicines?|medications?|pharmaceuticals?|vaccines?|tuition|school fees?|text ?books?|exercise books?|sanitary (pads?|towels?)|diapers?|baby food|fertili[sz]ers?)\b/i;
+
+export function likelyVatFreeItems(invoice: Invoice): string[] {
+  if (!invoice.apply_vat || !(invoice.vat_amount > 0)) return [];
+  return (invoice.line_items || [])
+    .map((item) => item.description || '')
+    .filter((description) => LIKELY_VAT_FREE.test(description));
+}
+
+export interface InsightContext {
+  filedPeriods?: Set<string>;
+  // The business's own TIN; undefined/empty means it isn't on their invoices
+  businessTin?: string | null;
 }
 
 export type InsightSeverity = 'urgent' | 'warning' | 'info' | 'success';
@@ -226,9 +251,11 @@ export function buildInsights(
   invoices: Invoice[],
   expenses: Expense[],
   customers: Customer[],
-  today: Date = new Date()
+  today: Date = new Date(),
+  context: InsightContext = {}
 ): Insight[] {
   const s = summarize(invoices, expenses, today);
+  const filedPeriods = context.filedPeriods ?? new Set<string>();
   const insights: Insight[] = [];
 
   if (invoices.length === 0 && expenses.length === 0) {
@@ -241,14 +268,36 @@ export function buildInsights(
     }];
   }
 
+  // 0. Returns past their due date that haven't been marked as filed
+  const unfiled = unfiledPastDueReturns(s, today, filedPeriods);
+  if (unfiled.length > 0) {
+    const owed = unfiled.reduce((total, p) => total + Math.max(0, p.netVat), 0);
+    insights.push({
+      id: 'unfiled-returns',
+      severity: 'urgent',
+      title: `${plural(unfiled.length, 'VAT return')} past due and not marked as filed`,
+      description: `${unfiled.map((p) => p.label).join(', ')}${owed > 0 ? `, with ${formatNaira(owed)} of VAT due` : ''}. Late returns can attract penalties and interest. If you've already filed, mark them as filed in the VAT report.`,
+      action: { label: 'Open VAT report', to: '/reports' },
+    });
+  }
+
   // 1. The VAT return currently due
-  const vatReturn = upcomingVatReturn(s, today);
+  const lastMonth = periodKey(new Date(today.getFullYear(), today.getMonth() - 1, 1));
+  if (today.getDate() <= VAT_RETURN_DAY && filedPeriods.has(lastMonth)) {
+    insights.push({
+      id: 'vat-filed',
+      severity: 'success',
+      title: `${periodLabel(lastMonth)} VAT return filed`,
+      description: 'Nothing more to do for that month.',
+    });
+  }
+  const vatReturn = upcomingVatReturn(s, today, filedPeriods);
   const daysLeft = daysBetween(today, vatReturn.dueDate);
   if (vatReturn.invoiceCount + vatReturn.expenseCount > 0) {
     if (vatReturn.netVat > 0) {
       insights.push({
         id: 'vat-return',
-        severity: daysLeft <= 5 ? 'urgent' : 'warning',
+        severity: daysLeft <= 5 ? 'urgent' : daysLeft <= 14 ? 'warning' : 'info',
         title: daysLeft >= 0
           ? `${vatReturn.label} VAT return due in ${plural(daysLeft, 'day')}`
           : `${vatReturn.label} VAT return was due ${plural(-daysLeft, 'day')} ago`,
@@ -327,7 +376,44 @@ export function buildInsights(
     }
   }
 
-  // 6. Collection rate and margin
+  // 6. The business's own TIN, which VAT invoices should carry
+  if (s.issuedCount > 0 && !context.businessTin?.trim()) {
+    insights.push({
+      id: 'business-tin',
+      severity: 'warning',
+      title: 'Your TIN isn\'t on your invoices',
+      description: 'VAT invoices should show your Tax Identification Number. Add it to your business profile and it will appear on every invoice.',
+      action: { label: 'Add your TIN', to: '/settings' },
+    });
+  }
+
+  // 7. Customers invoiced without a TIN on record
+  const invoicedCustomerIds = new Set(invoices.filter(isIssued).map((i) => i.customer_id));
+  const missingTin = customers.filter((c) => invoicedCustomerIds.has(c.id) && !c.tax_id?.trim());
+  if (missingTin.length > 0) {
+    insights.push({
+      id: 'customer-tins',
+      severity: 'info',
+      title: `${plural(missingTin.length, 'customer')} you've invoiced ${missingTin.length === 1 ? 'has' : 'have'} no TIN on record`,
+      description: `${missingTin.slice(0, 3).map((c) => c.name).join(', ')}${missingTin.length > 3 ? ' and others' : ''}. Business customers usually need their TIN on your invoice to claim the VAT back.`,
+      action: { label: missingTin.length === 1 ? 'Open customer' : 'View customers', to: missingTin.length === 1 ? `/customers/${missingTin[0].id}` : '/customers' },
+    });
+  }
+
+  // 8. VAT charged on items that are often VAT-free
+  const flagged = invoices.filter(isIssued).map((i) => ({ invoice: i, items: likelyVatFreeItems(i) })).filter((f) => f.items.length > 0);
+  if (flagged.length > 0) {
+    const examples = Array.from(new Set(flagged.flatMap((f) => f.items))).slice(0, 3).map((d) => `"${d}"`).join(', ');
+    insights.push({
+      id: 'vat-free-items',
+      severity: 'info',
+      title: `Check the VAT on ${plural(flagged.length, 'invoice')}`,
+      description: `You charged VAT on ${examples}. Basic food, medical and pharmaceutical products, educational materials and some baby and agricultural products are generally zero-rated or exempt in Nigeria. Confirm before your next return.`,
+      action: { label: 'View invoice', to: `/invoices/${flagged[0].invoice.id}` },
+    });
+  }
+
+  // 9. Collection rate and margin
   if (s.invoicedTotal > 0) {
     const collectionRate = s.collected / s.invoicedTotal;
     if (s.collectedExVat > 0) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInsights, isOverdue, summarize, upcomingVatReturn, vatDueDate } from './finance';
+import { buildInsights, isOverdue, likelyVatFreeItems, summarize, unfiledPastDueReturns, upcomingVatReturn, vatDueDate } from './finance';
 import type { Invoice } from '../services/invoiceService';
 import type { Expense } from '../services/expenseService';
 import type { Customer } from '../services/customerService';
@@ -164,5 +164,70 @@ describe('buildInsights', () => {
     const order = { urgent: 0, warning: 1, info: 2, success: 3 };
     const severities = insights.map((i) => order[i.severity]);
     expect(severities).toEqual([...severities].sort((a, b) => a - b));
+  });
+});
+
+describe('filed returns', () => {
+  const sept = invoice({ invoice_date: '2026-09-15', subtotal: 10000 });
+  const aug = invoice({ invoice_date: '2026-08-15', subtotal: 2000 });
+
+  it('moves on to this month once last month is marked filed', () => {
+    const s = summarize([sept], [], TODAY);
+    expect(upcomingVatReturn(s, TODAY, new Set()).key).toBe('2026-09');
+    expect(upcomingVatReturn(s, TODAY, new Set(['2026-09'])).key).toBe('2026-10');
+  });
+
+  it('lists past-due months that are not filed, oldest first', () => {
+    const s = summarize([sept, aug, invoice({ invoice_date: '2026-07-01' })], [], TODAY);
+    expect(unfiledPastDueReturns(s, TODAY, new Set()).map((p) => p.key)).toEqual(['2026-07', '2026-08']);
+    expect(unfiledPastDueReturns(s, TODAY, new Set(['2026-07'])).map((p) => p.key)).toEqual(['2026-08']);
+  });
+
+  it('raises an urgent unfiled-returns insight and a filed confirmation', () => {
+    const unfiled = buildInsights([sept, aug], [], [], TODAY, { businessTin: 'x' });
+    expect(unfiled[0].id).toBe('unfiled-returns');
+    expect(unfiled[0].description).toContain('August 2026');
+    expect(unfiled[0].description).toContain('150'); // August VAT owed
+
+    const oct = invoice({ invoice_date: '2026-10-02' });
+    const filed = buildInsights([sept, aug, oct], [], [], TODAY, { filedPeriods: new Set(['2026-08', '2026-09']), businessTin: 'x' });
+    const ids = filed.map((i) => i.id);
+    expect(ids).not.toContain('unfiled-returns');
+    expect(ids).toContain('vat-filed');
+    expect(filed.find((i) => i.id === 'vat-return')!.title).toContain('October 2026');
+    expect(filed.find((i) => i.id === 'vat-return')!.severity).toBe('info'); // 34 days away
+  });
+});
+
+describe('compliance checks', () => {
+  const customers: Customer[] = [
+    { id: 'c1', name: 'Has TIN Ltd', email: '', phone: '', tax_id: '123', created_at: '', updated_at: '' },
+    { id: 'c2', name: 'No TIN Ltd', email: '', phone: '', tax_id: null, created_at: '', updated_at: '' },
+    { id: 'c3', name: 'Never Invoiced', email: '', phone: '', tax_id: null, created_at: '', updated_at: '' },
+  ];
+
+  it('asks for the business TIN only when invoices have been issued', () => {
+    expect(buildInsights([invoice({})], [], [], TODAY).map((i) => i.id)).toContain('business-tin');
+    expect(buildInsights([invoice({})], [], [], TODAY, { businessTin: '1234' }).map((i) => i.id)).not.toContain('business-tin');
+    expect(buildInsights([invoice({ status: 'draft' })], [], [], TODAY).map((i) => i.id)).not.toContain('business-tin');
+  });
+
+  it('lists only invoiced customers without a TIN', () => {
+    const insights = buildInsights([invoice({ customer_id: 'c1' }), invoice({ customer_id: 'c2' })], [], customers, TODAY, { businessTin: 'x' });
+    const tin = insights.find((i) => i.id === 'customer-tins')!;
+    expect(tin.title).toBe("1 customer you've invoiced has no TIN on record");
+    expect(tin.description).toContain('No TIN Ltd');
+    expect(tin.description).not.toContain('Never Invoiced');
+  });
+
+  it('flags VAT charged on commonly VAT-free items, but not other goods or VAT-free invoices', () => {
+    const items = (desc: string) => [{ description: desc, quantity: 1, unit_price: 1000, line_total: 1000 }];
+    expect(likelyVatFreeItems(invoice({ line_items: items('50kg bag of rice') }))).toEqual(['50kg bag of rice']);
+    expect(likelyVatFreeItems(invoice({ line_items: items('Paracetamol drugs') }))).toHaveLength(1);
+    expect(likelyVatFreeItems(invoice({ line_items: items('Website design') }))).toHaveLength(0);
+    expect(likelyVatFreeItems(invoice({ line_items: items('Price list') }))).toHaveLength(0); // "rice" inside a word
+    expect(likelyVatFreeItems(invoice({ apply_vat: false, vat_amount: 0, line_items: items('Rice') }))).toHaveLength(0);
+    const insight = buildInsights([invoice({ line_items: items('Rice') })], [], [], TODAY, { businessTin: 'x' }).find((i) => i.id === 'vat-free-items');
+    expect(insight?.description).toContain('"Rice"');
   });
 });

@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, Settings, TrendingUp, AlertCircle, ArrowUpRight, ArrowDownLeft, Users, FileText, Plus, Home, BarChart3, CalendarClock } from 'lucide-react';
-import { useCustomers, useInvoices, useExpenses } from '../context/DataContext';
+import { useCustomers, useInvoices, useExpenses, useVatReturns } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import DataErrorBanner from '../components/DataErrorBanner';
 import SmartInsights from '../components/SmartInsights';
 import NotificationsBell from '../components/NotificationsBell';
 import { balanceDue, buildInsights, daysBetween, formatNaira, summarize, upcomingVatReturn } from '../lib/finance';
+import { buildAiFacts } from '../lib/aiFacts';
 import GlobalSearch from '../components/GlobalSearch';
 
 interface NavItem {
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const { customers } = useCustomers();
   const { invoices, error: invoicesError } = useInvoices();
   const { expenses, error: expensesError } = useExpenses();
+  const { vatReturns } = useVatReturns();
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -35,8 +37,16 @@ export default function DashboardPage() {
 
   const today = new Date();
   const summary = useMemo(() => summarize(invoices, expenses, new Date()), [invoices, expenses]);
-  const insights = useMemo(() => buildInsights(invoices, expenses, customers, new Date()), [invoices, expenses, customers]);
-  const vatReturn = upcomingVatReturn(summary, today);
+  const filedPeriods = useMemo(() => new Set(vatReturns.map((r) => r.period)), [vatReturns]);
+  const insights = useMemo(
+    () => buildInsights(invoices, expenses, customers, new Date(), { filedPeriods, businessTin: profile?.tax_id }),
+    [invoices, expenses, customers, filedPeriods, profile?.tax_id]
+  );
+  const aiFacts = useMemo(
+    () => buildAiFacts(invoices, expenses, customers, vatReturns, profile, new Date()),
+    [invoices, expenses, customers, vatReturns, profile]
+  );
+  const vatReturn = upcomingVatReturn(summary, today, filedPeriods);
   const vatDaysLeft = daysBetween(today, vatReturn.dueDate);
   const pendingExpenses = summary.pendingExpenses.length;
   const formatCurrency = (amount: number) => formatNaira(amount);
@@ -348,7 +358,7 @@ export default function DashboardPage() {
 
           {/* Secondary Section - Insights & key dates */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <SmartInsights insights={insights} />
+            <SmartInsights insights={insights} aiFacts={aiFacts} />
 
             <div className="space-y-4">
               {/* Next VAT return */}

@@ -300,6 +300,7 @@ export default function InvoiceDetailPage() {
                     {profile.email && <p>{profile.email}</p>}
                     {profile.phone && <p>{profile.phone}</p>}
                     {profile.location && <p>{profile.location}</p>}
+                    {profile.tax_id && <p>TIN: {profile.tax_id}</p>}
                   </div>
                 )}
               </div>
@@ -352,6 +353,9 @@ export default function InvoiceDetailPage() {
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Bill To</p>
             <div className="text-slate-900">
               <p className="text-lg font-semibold mb-1">{getCustomerName(invoice.customer_id)}</p>
+              {customers.find((c) => c.id === invoice.customer_id)?.tax_id && (
+                <p className="text-sm text-slate-600">TIN: {customers.find((c) => c.id === invoice.customer_id)?.tax_id}</p>
+              )}
             </div>
           </div>
 
