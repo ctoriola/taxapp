@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle, CheckCircle, Loader, Menu, X, LogOut, Settings as SettingsIcon, Bell, Search, Upload, X as XIcon, Home } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, CheckCircle, Loader, Menu, X, LogOut, Settings as SettingsIcon, Bell, Upload, X as XIcon, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateUserProfile, fetchUserProfile, UserProfile, uploadCompanyLogo } from '../services/customerService';
+import GlobalSearch from '../components/GlobalSearch';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function SettingsPage() {
             phone: profile.phone,
             location: profile.location,
             logo_url: profile.logo_url,
+            tax_id: profile.tax_id,
           });
           if (profile.logo_url) {
             setLogoPreview(profile.logo_url);
@@ -55,6 +57,7 @@ export default function SettingsPage() {
               phone: fetchedProfile.phone,
               location: fetchedProfile.location,
               logo_url: fetchedProfile.logo_url,
+              tax_id: fetchedProfile.tax_id,
             });
             if (fetchedProfile.logo_url) {
               setLogoPreview(fetchedProfile.logo_url);
@@ -219,14 +222,7 @@ export default function SettingsPage() {
 
           {/* Center: Search */}
           <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search transactions..."
-                className="input-field pl-10 py-2.5"
-              />
-            </div>
+            <GlobalSearch />
           </div>
 
           {/* Right: Notifications & Profile */}
@@ -378,6 +374,20 @@ export default function SettingsPage() {
                 placeholder="City/Region"
                 className="input-field w-full"
               />
+            </div>
+
+            {/* TIN */}
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Tax Identification Number (TIN)</label>
+              <input
+                type="text"
+                name="tax_id"
+                value={formData?.tax_id || ''}
+                onChange={handleChange}
+                placeholder="e.g. 12345678-0001"
+                className="input-field w-full"
+              />
+              <p className="text-xs text-stone-500 mt-1">Optional. Shown on your invoices; VAT invoices should carry your TIN.</p>
             </div>
 
             {/* Company Logo */}

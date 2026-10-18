@@ -32,6 +32,8 @@ export interface UserProfile {
   phone: string;
   location: string;
   logo_url?: string;
+  // The business's own Tax Identification Number, shown on its VAT invoices
+  tax_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +52,7 @@ function profileFields(profile: ProfileInput) {
     phone: profile.phone,
     location: profile.location,
     logo_url: profile.logo_url || null,
+    tax_id: profile.tax_id?.trim() || null,
   };
 }
 
@@ -61,7 +64,7 @@ export async function saveUserProfile(profile: ProfileInput, userId?: string): P
     const data = { ...profileFields(profile), created_at: timestamp, updated_at: timestamp };
 
     await settleWrite(setDoc(userDoc(uid), data));
-    return { id: uid, ...data, logo_url: data.logo_url ?? undefined };
+    return { id: uid, ...data, logo_url: data.logo_url ?? undefined, tax_id: data.tax_id ?? undefined };
   } catch (err) {
     console.error('Error saving user profile:', err);
     throw err;
@@ -84,8 +87,8 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
 }
 
 function toProfile(snapshot: Parameters<typeof withId>[0]): UserProfile {
-  const profile = withId<UserProfile & { logo_url?: string | null }>(snapshot);
-  return { ...profile, logo_url: profile.logo_url ?? undefined };
+  const profile = withId<UserProfile & { logo_url?: string | null; tax_id?: string | null }>(snapshot);
+  return { ...profile, logo_url: profile.logo_url ?? undefined, tax_id: profile.tax_id ?? undefined };
 }
 
 // Live profile updates. Waits for the server before reporting "no profile", so a cold cache

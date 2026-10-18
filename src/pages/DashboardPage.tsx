@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, Settings, TrendingUp, AlertCircle, ArrowUpRight, ArrowDownLeft, Users, FileText, Bell, Search, Plus, Home } from 'lucide-react';
-import { useCustomers, useInvoices, useExpenses } from '../context/DataContext';
+import { Menu, X, LogOut, Settings, TrendingUp, AlertCircle, ArrowUpRight, ArrowDownLeft, Users, FileText, Plus, Home, BarChart3, CalendarClock } from 'lucide-react';
+import { useCustomers, useInvoices, useExpenses, useVatReturns } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import DataErrorBanner from '../components/DataErrorBanner';
+import SmartInsights from '../components/SmartInsights';
+import NotificationsBell from '../components/NotificationsBell';
+import { balanceDue, buildInsights, daysBetween, formatNaira, summarize, upcomingVatReturn } from '../lib/finance';
+import { buildAiFacts } from '../lib/aiFacts';
+import GlobalSearch from '../components/GlobalSearch';
 
 interface NavItem {
   label: string;
@@ -12,43 +17,14 @@ interface NavItem {
   external?: boolean;
 }
 
-interface StatCard {
-  label: string;
-  value: string;
-  currency: string;
-  icon: React.ReactNode;
-  bgColor: string;
-  iconBgColor: string;
-}
-
-interface InsightCard {
-  title: string;
-  description: string;
-  type: 'info' | 'warning' | 'success';
-}
-
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { customers, isLoading } = useCustomers();
+  const { customers } = useCustomers();
   const { invoices, error: invoicesError } = useInvoices();
   const { expenses, error: expensesError } = useExpenses();
+  const { vatReturns } = useVatReturns();
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const notificationContainer = (event.target as HTMLElement).closest('[class*="notification"]');
-      if (!notificationContainer && notificationsOpen) {
-        setNotificationsOpen(false);
-      }
-    };
-
-    if (notificationsOpen) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [notificationsOpen]);
 
   const handleLogout = async () => {
     try {
@@ -59,169 +35,28 @@ export default function DashboardPage() {
     }
   };
 
-  // Calculate metrics from invoices (drafts haven't been issued, so they don't count)
-  const issuedInvoices = invoices.filter(i => i.status !== 'draft');
-  const totalRevenue = issuedInvoices.reduce((sum, i) => sum + (i.amount_paid || 0), 0);
-  const totalVATCollected = issuedInvoices.reduce((sum, i) => sum + (i.vat_amount || 0), 0);
-  
-  // Calculate VAT paid from approved expenses
-  const totalVATPaid = expenses
-    .filter(e => e.status === 'approved')
-    .reduce((sum, e) => sum + (e.vat_amount || 0), 0);
-  
-  const totalPayableTax = totalVATCollected - totalVATPaid;
-  const totalOutstanding = issuedInvoices.reduce((sum, i) => sum + Math.max(0, i.total_amount - (i.amount_paid || 0)), 0);
-  const paidInvoices = invoices.filter(i => i.status === 'paid').length;
-  const unpaidInvoices = invoices.filter(i => i.status === 'unpaid' || i.status === 'partially_paid').length;
-
-  // Calculate expense metrics
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.total_amount, 0);
-  const approvedExpenses = expenses
-    .filter(e => e.status === 'approved')
-    .reduce((sum, e) => sum + e.amount, 0);
-  const pendingExpenses = expenses.filter(e => e.status === 'pending').length;
-  // Only approved expenses count against profit; drafts, pending and rejected ones don't
-  const approvedExpensesTotal = expenses
-    .filter(e => e.status === 'approved')
-    .reduce((sum, e) => sum + e.total_amount, 0);
-  const profit = totalRevenue - approvedExpensesTotal;
-
-  const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-    });
-  };
+  const today = new Date();
+  const summary = useMemo(() => summarize(invoices, expenses, new Date()), [invoices, expenses]);
+  const filedPeriods = useMemo(() => new Set(vatReturns.map((r) => r.period)), [vatReturns]);
+  const insights = useMemo(
+    () => buildInsights(invoices, expenses, customers, new Date(), { filedPeriods, businessTin: profile?.tax_id }),
+    [invoices, expenses, customers, filedPeriods, profile?.tax_id]
+  );
+  const aiFacts = useMemo(
+    () => buildAiFacts(invoices, expenses, customers, vatReturns, profile, new Date()),
+    [invoices, expenses, customers, vatReturns, profile]
+  );
+  const vatReturn = upcomingVatReturn(summary, today, filedPeriods);
+  const vatDaysLeft = daysBetween(today, vatReturn.dueDate);
+  const pendingExpenses = summary.pendingExpenses.length;
+  const formatCurrency = (amount: number) => formatNaira(amount);
 
   const navItems: NavItem[] = [
-    { label: 'Overview', href: '#', icon: <TrendingUp className="w-5 h-5" /> },
+    { label: 'Overview', href: '/dashboard', icon: <TrendingUp className="w-5 h-5" /> },
     { label: 'Invoices', href: '/invoices', icon: <FileText className="w-5 h-5" /> },
     { label: 'Expenses', href: '/expenses', icon: <ArrowDownLeft className="w-5 h-5" /> },
-    { label: 'Reports', href: '#', icon: <AlertCircle className="w-5 h-5" /> },
+    { label: 'VAT Reports', href: '/reports', icon: <BarChart3 className="w-5 h-5" /> },
     { label: 'Customers', href: '/customers', icon: <Users className="w-5 h-5" /> },
-  ];
-
-  const statCards: StatCard[] = [
-    {
-      label: 'Revenue Collected',
-      value: formatCurrency(totalRevenue),
-      currency: '',
-      icon: <ArrowUpRight className="w-6 h-6" />,
-      bgColor: 'bg-blue-50',
-      iconBgColor: 'bg-blue-100 text-blue-600',
-    },
-    {
-      label: 'Profit',
-      value: formatCurrency(profit),
-      currency: '',
-      icon: <TrendingUp className="w-6 h-6" />,
-      bgColor: profit >= 0 ? 'bg-green-50' : 'bg-red-50',
-      iconBgColor: profit >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600',
-    },
-    {
-      label: 'Outstanding',
-      value: formatCurrency(totalOutstanding),
-      currency: '',
-      icon: <AlertCircle className="w-6 h-6" />,
-      bgColor: 'bg-amber-50',
-      iconBgColor: 'bg-amber-100 text-amber-600',
-    },
-    {
-      label: 'VAT Collected',
-      value: formatCurrency(totalVATCollected),
-      currency: '',
-      icon: <TrendingUp className="w-6 h-6" />,
-      bgColor: 'bg-emerald-50',
-      iconBgColor: 'bg-emerald-100 text-emerald-600',
-    },
-    {
-      label: 'VAT Paid',
-      value: formatCurrency(totalVATPaid),
-      currency: '',
-      icon: <ArrowDownLeft className="w-6 h-6" />,
-      bgColor: 'bg-slate-50',
-      iconBgColor: 'bg-slate-200 text-slate-600',
-    },
-    {
-      label: 'Payable VAT',
-      value: formatCurrency(totalPayableTax),
-      currency: '',
-      icon: <TrendingUp className="w-6 h-6" />,
-      bgColor: 'bg-red-50',
-      iconBgColor: 'bg-red-100 text-red-600',
-    },
-    {
-      label: 'Total Invoices',
-      value: invoices.length.toString(),
-      currency: '',
-      icon: <FileText className="w-6 h-6" />,
-      bgColor: 'bg-slate-50',
-      iconBgColor: 'bg-slate-200 text-slate-600',
-    },
-    {
-      label: 'Total Expenses',
-      value: formatCurrency(totalExpenses),
-      currency: '',
-      icon: <ArrowDownLeft className="w-6 h-6" />,
-      bgColor: 'bg-purple-50',
-      iconBgColor: 'bg-purple-100 text-purple-600',
-    },
-    {
-      label: 'Approved Expenses',
-      value: formatCurrency(approvedExpenses),
-      currency: '',
-      icon: <TrendingUp className="w-6 h-6" />,
-      bgColor: 'bg-cyan-50',
-      iconBgColor: 'bg-cyan-100 text-cyan-600',
-    },
-    {
-      label: 'Pending Approval',
-      value: pendingExpenses.toString(),
-      currency: '',
-      icon: <AlertCircle className="w-6 h-6" />,
-      bgColor: 'bg-orange-50',
-      iconBgColor: 'bg-orange-100 text-orange-600',
-    },
-  ];
-
-  const emphasizedCards = [
-    {
-      label: 'Paid Invoices',
-      value: paidInvoices.toString(),
-      currency: '',
-      dueDate: `${unpaidInvoices} unpaid`,
-      highlighted: true,
-    },
-    {
-      label: 'Total Expenses',
-      value: expenses.length.toString(),
-      currency: '',
-      dueDate: `${expenses.length} expenses`,
-      highlighted: false,
-    },
-  ];
-
-  const insights: InsightCard[] = [
-    {
-      title: 'Overview',
-      description: `You have ${invoices.length} invoices with ${paidInvoices} paid and ${unpaidInvoices} awaiting payment.`,
-      type: 'info',
-    },
-    ...(totalOutstanding > 0 ? [{
-      title: 'Outstanding Balance',
-      description: `You have ${formatCurrency(totalOutstanding)} pending payment from customers.`,
-      type: 'warning' as const,
-    }] : []),
-    ...(invoices.length > 0 ? [{
-      title: 'Tax Summary',
-      description: `VAT Collected: ${formatCurrency(totalVATCollected)} | Payable VAT: ${formatCurrency(totalPayableTax)}`,
-      type: 'success' as const,
-    }] : [{
-      title: 'No Invoices Yet',
-      description: 'Create your first invoice to get started.',
-      type: 'info' as const,
-    }]),
   ];
 
   const formatDate = (dateString: string) => {
@@ -235,30 +70,35 @@ export default function DashboardPage() {
     return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
   };
 
-  const allTransactions = [
-    ...invoices.map(inv => ({
-      description: `Invoice ${inv.invoice_number}`,
-      amount: formatCurrency(inv.amount_paid || 0),
-      type: inv.amount_paid > 0 ? 'income' : 'pending',
-      date: formatDate(inv.created_at),
-      timestamp: new Date(inv.created_at).getTime(),
-    })),
-    ...expenses.map(exp => ({
-      description: `Expense - ${exp.description || 'Untitled'}`,
+  const customerName = (id: string) => customers.find((c) => c.id === id)?.name || 'Customer';
+
+  const recentActivity = [
+    ...invoices.map((inv) => {
+      const outstanding = balanceDue(inv);
+      return {
+        key: `invoice-${inv.id}`,
+        to: `/invoices/${inv.id}`,
+        description: `Invoice ${inv.invoice_number} · ${customerName(inv.customer_id)}`,
+        detail: inv.status === 'draft' ? 'Draft' : outstanding === 0 ? 'Paid' : inv.amount_paid > 0 ? 'Part paid' : 'Awaiting payment',
+        amount: formatCurrency(inv.status !== 'draft' && outstanding === 0 ? inv.amount_paid : inv.total_amount),
+        type: inv.status === 'draft' ? 'draft' : outstanding === 0 ? 'income' : 'pending',
+        date: formatDate(inv.created_at),
+        timestamp: new Date(inv.created_at).getTime(),
+      };
+    }),
+    ...expenses.map((exp) => ({
+      key: `expense-${exp.id}`,
+      to: `/expenses/${exp.id}`,
+      description: `Expense · ${exp.description || 'Untitled'}`,
+      detail: exp.status.charAt(0).toUpperCase() + exp.status.slice(1),
       amount: formatCurrency(exp.total_amount || 0),
       type: 'expense',
       date: formatDate(exp.created_at),
       timestamp: new Date(exp.created_at).getTime(),
     })),
-  ];
-
-  const recentTransactions = allTransactions
+  ]
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 5);
-
-  const lastThreeTransactions = allTransactions
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 3);
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -299,73 +139,26 @@ export default function DashboardPage() {
 
           {/* Center: Search */}
           <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search transactions..."
-                className="input-field pl-10 py-2.5"
-              />
-            </div>
+            <GlobalSearch />
           </div>
 
           {/* Right: Notifications & Profile */}
           <div className="flex items-center gap-4 relative">
-            <button 
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200 relative"
-            >
-              <Bell className="w-5 h-5 text-slate-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-600 rounded-full"></span>
-            </button>
+            <NotificationsBell insights={insights} />
 
-            {/* Notifications Dropdown */}
-            {notificationsOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
-                <div className="p-4 border-b border-slate-200">
-                  <h3 className="text-sm font-semibold text-slate-900">Recent Activity</h3>
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {lastThreeTransactions.length > 0 ? (
-                    <div className="divide-y divide-slate-200">
-                      {lastThreeTransactions.map((txn, idx) => (
-                        <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-slate-900">{txn.description}</p>
-                              <p className="text-xs text-slate-500 mt-1">{txn.date}</p>
-                            </div>
-                            <span className={`text-sm font-semibold ${
-                              txn.type === 'income' ? 'text-emerald-600' : 
-                              txn.type === 'expense' ? 'text-red-600' : 
-                              'text-slate-600'
-                            }`}>
-                              {txn.amount}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center text-slate-500 text-sm">
-                      No recent transactions
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
+            <Link to="/settings" title="Business profile" className="rounded-full hover:shadow-lg transition-all">
             {profile?.logo_url ? (
               <img
                 src={profile.logo_url}
                 alt="Company logo"
-                className="h-10 w-10 rounded-full object-cover cursor-pointer hover:shadow-lg transition-all"
+                className="h-10 w-10 rounded-full object-cover"
               />
             ) : (
-              <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-emerald-700 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:shadow-lg transition-all">
+              <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-emerald-700 rounded-full flex items-center justify-center text-white font-bold text-sm">
                 {user?.email?.charAt(0).toUpperCase() || 'U'}
               </div>
             )}
+            </Link>
 
             <Link
               to="/settings"
@@ -390,7 +183,7 @@ export default function DashboardPage() {
         {/* Sidebar */}
         <aside
           className={`${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            sidebarOpen ? 'translate-x-0' : '-translate-x-[calc(100%+2rem)] invisible lg:visible'
           } fixed lg:sticky top-20 lg:top-24 left-6 lg:left-0 h-[calc(100vh-100px)] lg:h-auto w-56 bg-white rounded-3xl shadow-lg lg:shadow-none lg:rounded-none lg:w-64 border border-stone-200/50 lg:border-0 transition-all duration-300 lg:transition-none pt-6 lg:pt-0 overflow-y-auto z-30 lg:translate-x-0`}
         >
           <nav className="p-4 space-y-1">
@@ -445,18 +238,20 @@ export default function DashboardPage() {
 
           {/* Primary Stats - Bento Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Revenue Collected - Large */}
+            {/* Payments received - Large */}
             <div className="card-bento md:col-span-1 lg:col-span-2 bg-gradient-to-br from-emerald-50 to-white p-8">
               <div className="flex items-start justify-between mb-6">
                 <div>
                   <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Total Revenue</p>
-                  <p className="text-2xl font-bold text-emerald-900">{formatCurrency(totalRevenue)}</p>
+                  <p className="text-2xl font-bold text-emerald-900">{formatCurrency(summary.collected)}</p>
                 </div>
                 <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center">
                   <ArrowUpRight className="w-8 h-8 text-emerald-700" />
                 </div>
               </div>
-              <p className="text-sm text-slate-600">Increased from last month</p>
+              <p className="text-sm text-slate-600">
+                Payments received, including VAT · {summary.paidCount} of {summary.issuedCount} invoices fully paid
+              </p>
             </div>
 
             {/* Profit - Large */}
@@ -464,70 +259,67 @@ export default function DashboardPage() {
               <div className="flex items-start justify-between mb-6">
                 <div>
                   <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Net Profit</p>
-                  <p className="text-2xl font-bold text-blue-900">{profit >= 0 ? formatCurrency(profit) : `-${formatCurrency(Math.abs(profit))}`}</p>
+                  <p className={`text-2xl font-bold ${summary.profit >= 0 ? 'text-blue-900' : 'text-red-700'}`}>
+                    {summary.profit >= 0 ? formatCurrency(summary.profit) : `-${formatCurrency(Math.abs(summary.profit))}`}
+                  </p>
                 </div>
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${profit >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                  <TrendingUp className={`w-8 h-8 ${profit >= 0 ? 'text-green-700' : 'text-red-700'}`} />
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${summary.profit >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                  <TrendingUp className={`w-8 h-8 ${summary.profit >= 0 ? 'text-green-700' : 'text-red-700'}`} />
                 </div>
               </div>
-              <p className="text-sm text-slate-600">Revenue minus expenses</p>
+              <p className="text-sm text-slate-600">Revenue received minus approved expenses, both excluding VAT</p>
             </div>
 
-            {/* VAT Collected */}
             <div className="card-bento p-6">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">VAT Collected</p>
-                  <p className="text-lg font-bold text-slate-900">{formatCurrency(totalVATCollected)}</p>
+                  <p className="text-lg font-bold text-slate-900">{formatCurrency(summary.outputVat)}</p>
                 </div>
                 <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
                   <AlertCircle className="w-6 h-6 text-amber-700" />
                 </div>
               </div>
+              <p className="text-xs text-slate-500">Charged on issued invoices</p>
             </div>
-
-            {/* VAT Paid */}
             <div className="card-bento p-6">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">VAT Paid</p>
-                  <p className="text-lg font-bold text-slate-900">{formatCurrency(totalVATPaid)}</p>
+                  <p className="text-lg font-bold text-slate-900">{formatCurrency(summary.inputVat)}</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                   <ArrowDownLeft className="w-6 h-6 text-purple-700" />
                 </div>
               </div>
+              <p className="text-xs text-slate-500">On approved expenses</p>
             </div>
-
-            {/* Outstanding */}
             <div className="card-bento p-6">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Outstanding</p>
-                  <p className="text-lg font-bold text-slate-900">{formatCurrency(totalOutstanding)}</p>
+                  <p className="text-lg font-bold text-slate-900">{formatCurrency(summary.outstanding)}</p>
                 </div>
                 <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
                   <AlertCircle className="w-6 h-6 text-red-700" />
                 </div>
               </div>
+              <p className="text-xs text-slate-500">{summary.awaitingPaymentCount} invoice{summary.awaitingPaymentCount === 1 ? '' : 's'} awaiting payment</p>
             </div>
-
-            {/* Payable Tax */}
             <div className="card-bento p-6">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-2">
                 <div>
-                  <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Payable VAT</p>
-                  <p className="text-lg font-bold text-slate-900">{formatCurrency(totalPayableTax)}</p>
+                  <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">{summary.netVat >= 0 ? 'Payable VAT' : 'VAT Credit'}</p>
+                  <p className="text-lg font-bold text-slate-900">{formatCurrency(Math.abs(summary.netVat))}</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-orange-700" />
                 </div>
               </div>
+              <p className="text-xs text-slate-500">{summary.netVat >= 0 ? 'VAT collected minus VAT paid' : 'VAT paid exceeds VAT collected'}</p>
             </div>
-
-            {/* Total Invoices */}
             <div className="card-bento p-6">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Total Invoices</p>
                   <p className="text-lg font-bold text-slate-900">{invoices.length}</p>
@@ -536,24 +328,22 @@ export default function DashboardPage() {
                   <FileText className="w-6 h-6 text-blue-700" />
                 </div>
               </div>
+              <p className="text-xs text-slate-500">{summary.draftInvoices.length} draft{summary.draftInvoices.length === 1 ? '' : 's'}</p>
             </div>
-
-            {/* Total Expenses */}
             <div className="card-bento p-6">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Total Expenses</p>
-                  <p className="text-lg font-bold text-slate-900">{formatCurrency(totalExpenses)}</p>
+                  <p className="text-lg font-bold text-slate-900">{formatCurrency(summary.approvedExpensesTotal)}</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                   <ArrowDownLeft className="w-6 h-6 text-purple-700" />
                 </div>
               </div>
+              <p className="text-xs text-slate-500">Approved, including VAT</p>
             </div>
-
-            {/* Pending Expenses */}
             <div className="card-bento p-6">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Pending Expenses</p>
                   <p className="text-lg font-bold text-slate-900">{pendingExpenses}</p>
@@ -562,106 +352,87 @@ export default function DashboardPage() {
                   <AlertCircle className="w-6 h-6 text-yellow-700" />
                 </div>
               </div>
+              <p className="text-xs text-slate-500">Awaiting approval</p>
             </div>
           </div>
 
-          {/* Secondary Section - Insights & Transactions */}
+          {/* Secondary Section - Insights & key dates */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Insights */}
-            <div className="lg:col-span-2 card-bento p-8">
-              <h3 className="text-lg font-bold text-slate-900 mb-6">Smart Insights</h3>
-              <div className="space-y-4">
-                {insights.slice(0, 3).map((insight) => (
-                  <div
-                    key={insight.title}
-                    className={`p-4 rounded-2xl border-l-4 ${
-                      insight.type === 'success'
-                        ? 'border-l-emerald-500 bg-emerald-50'
-                        : insight.type === 'warning'
-                        ? 'border-l-amber-500 bg-amber-50'
-                        : 'border-l-blue-500 bg-blue-50'
-                    }`}
-                  >
-                    <h4 className={`font-semibold text-sm mb-1 ${
-                      insight.type === 'success'
-                        ? 'text-emerald-900'
-                        : insight.type === 'warning'
-                        ? 'text-amber-900'
-                        : 'text-blue-900'
-                    }`}>
-                      {insight.title}
-                    </h4>
-                    <p className={`text-xs ${
-                      insight.type === 'success'
-                        ? 'text-emerald-700'
-                        : insight.type === 'warning'
-                        ? 'text-amber-700'
-                        : 'text-blue-700'
-                    }`}>
-                      {insight.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <SmartInsights insights={insights} aiFacts={aiFacts} />
 
-            {/* Quick Stats */}
             <div className="space-y-4">
-              {/* Paid Invoices */}
-              {emphasizedCards[0] && (
-                <div className="card-bento p-6 bg-gradient-to-br from-emerald-50 to-white">
-                  <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Paid Invoices</p>
-                  <p className="text-xl font-bold text-emerald-900 mb-2">{emphasizedCards[0].value}</p>
-                  <p className="text-xs text-slate-600">{emphasizedCards[0].dueDate}</p>
+              {/* Next VAT return */}
+              <Link to="/reports" className="block card-bento p-6 bg-gradient-to-br from-orange-50 to-white hover:shadow-md transition-all">
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarClock className="w-4 h-4 text-orange-700" />
+                  <p className="text-xs font-bold text-orange-700 uppercase tracking-wider">Next VAT Return</p>
                 </div>
-              )}
+                <p className="text-xl font-bold text-slate-900 mb-1">
+                  {vatReturn.netVat > 0 ? formatCurrency(vatReturn.netVat) : 'Nothing to pay'}
+                </p>
+                <p className="text-xs text-slate-600">
+                  {vatReturn.label} · due {vatReturn.dueDate.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                  {' '}({vatDaysLeft === 0 ? 'today' : `in ${vatDaysLeft} day${vatDaysLeft === 1 ? '' : 's'}`})
+                </p>
+              </Link>
 
-              {/* Total Expenses */}
-              {emphasizedCards[1] && (
-                <div className="card-bento p-6 bg-gradient-to-br from-slate-100 to-white">
-                  <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Total Expenses</p>
-                  <p className="text-xl font-bold text-slate-900 mb-2">{emphasizedCards[1].value}</p>
-                  <p className="text-xs text-slate-500">{emphasizedCards[1].dueDate}</p>
-                </div>
-              )}
+              {/* Overdue invoices */}
+              <Link to="/invoices" className={`block card-bento p-6 hover:shadow-md transition-all ${summary.overdueInvoices.length > 0 ? 'bg-gradient-to-br from-red-50 to-white' : 'bg-gradient-to-br from-emerald-50 to-white'}`}>
+                <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${summary.overdueInvoices.length > 0 ? 'text-red-700' : 'text-emerald-700'}`}>Overdue Invoices</p>
+                <p className="text-xl font-bold text-slate-900 mb-1">
+                  {summary.overdueInvoices.length > 0 ? formatCurrency(summary.overdueAmount) : 'None'}
+                </p>
+                <p className="text-xs text-slate-600">
+                  {summary.overdueInvoices.length > 0
+                    ? `${summary.overdueInvoices.length} invoice${summary.overdueInvoices.length === 1 ? '' : 's'} past due date`
+                    : 'Every issued invoice is within its due date'}
+                </p>
+              </Link>
             </div>
           </div>
 
           {/* Recent Activity & Customers */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent Activity */}
-            <div className="lg:col-span-2 card-bento p-8">
+            <div className="lg:col-span-2 card-bento p-6 sm:p-8">
               <h3 className="text-lg font-bold text-slate-900 mb-6">Recent Activity</h3>
-              <div className="space-y-3">
-                {recentTransactions.slice(0, 5).map((transaction, idx) => (
-                  <div key={`${transaction.description}-${idx}`} className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl hover:bg-stone-100 transition-all">
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-slate-900">{transaction.description}</p>
-                      <p className="text-xs text-slate-500 mt-1">{transaction.date}</p>
-                    </div>
-                    <p className={`text-lg font-bold ${
-                      transaction.type === 'income'
-                        ? 'text-emerald-600'
-                        : transaction.type === 'expense'
-                        ? 'text-amber-600'
-                        : 'text-slate-600'
-                    }`}>
-                      {transaction.type === 'income' ? '+' : '-'}{transaction.amount}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No activity yet. <Link to="/invoices/create" className="font-semibold text-emerald-700 hover:underline">Create an invoice</Link> or{' '}
+                  <Link to="/expenses/create" className="font-semibold text-emerald-700 hover:underline">record an expense</Link>.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {recentActivity.map((item) => (
+                    <Link key={item.key} to={item.to} className="flex items-center justify-between gap-4 p-4 bg-stone-50 rounded-2xl hover:bg-stone-100 transition-all">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-slate-900 truncate">{item.description}</p>
+                        <p className="text-xs text-slate-500 mt-1">{item.date} · {item.detail}</p>
+                      </div>
+                      <p className={`text-base sm:text-lg font-bold whitespace-nowrap ${
+                        item.type === 'income'
+                          ? 'text-emerald-600'
+                          : item.type === 'expense'
+                          ? 'text-amber-600'
+                          : 'text-slate-500'
+                      }`}>
+                        {item.type === 'income' ? '+' : item.type === 'expense' ? '-' : ''}{item.amount}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Recent Customers */}
             {customers.length > 0 && (
-              <div className="card-bento p-8">
+              <div className="card-bento p-6 sm:p-8">
                 <h3 className="text-lg font-bold text-slate-900 mb-6">Recent Customers</h3>
                 <div className="space-y-3">
                   {customers.slice(0, 5).map((customer) => (
                     <Link
                       key={customer.id}
-                      to="/customers"
+                      to={`/customers/${customer.id}`}
                       className="p-3 bg-stone-50 rounded-2xl hover:bg-stone-100 transition-all flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-700 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -669,7 +440,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">{customer.name}</p>
-                        <p className="text-xs text-slate-500 truncate">{customer.email}</p>
+                        <p className="text-xs text-slate-500 truncate">{customer.email || customer.phone}</p>
                       </div>
                     </Link>
                   ))}

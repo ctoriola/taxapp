@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Each user's data lives under users/{uid}: the profile is that document, and
-// customers, invoices and expenses are subcollections of it. Only the signed-in
+// customers, invoices, expenses and vatReturns are subcollections of it. Only the signed-in
 // owner can read or write anything there; everything else is denied.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -14,7 +14,7 @@ service cloud.firestore {
 
       match /{collection}/{docId} {
         allow read, write: if isOwner(uid)
-          && collection in ['customers', 'invoices', 'expenses'];
+          && collection in ['customers', 'invoices', 'expenses', 'vatReturns'];
       }
     }
   }

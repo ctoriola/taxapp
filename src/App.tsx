@@ -19,6 +19,7 @@ const pageLoaders = {
   ExpensesPage: () => import('./pages/ExpensesPage'),
   CreateExpensePage: () => import('./pages/CreateExpensePage'),
   ExpenseDetailPage: () => import('./pages/ExpenseDetailPage'),
+  ReportsPage: () => import('./pages/ReportsPage'),
   CustomerDetailPage: () => import('./pages/CustomerDetailPage'),
   AddCustomerPage: () => import('./pages/AddCustomerPage'),
   EditInvoicePage: () => import('./pages/EditInvoicePage'),
@@ -45,6 +46,7 @@ const CustomerDetailPage = lazy(pageLoaders.CustomerDetailPage);
 const CreateExpensePage = lazy(pageLoaders.CreateExpensePage);
 const ExpensesPage = lazy(pageLoaders.ExpensesPage);
 const ExpenseDetailPage = lazy(pageLoaders.ExpenseDetailPage);
+const ReportsPage = lazy(pageLoaders.ReportsPage);
 
 function PageLoading() {
   return (
@@ -95,6 +97,7 @@ export default function App() {
             <Route path="/expenses" element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
             <Route path="/expenses/create" element={<ProtectedRoute><CreateExpensePage /></ProtectedRoute>} />
             <Route path="/expenses/:id" element={<ProtectedRoute><ExpenseDetailPage /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <PrefetchPages />

@@ -4,6 +4,7 @@ import { Search, Plus, Trash2, Mail, Phone, Building2, ArrowUpRight, Menu, X, Lo
 import { useCustomers } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import GlobalSearch from '../components/GlobalSearch';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -83,14 +84,7 @@ export default function CustomersPage() {
 
           {/* Center: Search */}
           <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search transactions..."
-                className="input-field pl-10 py-2.5"
-              />
-            </div>
+            <GlobalSearch />
           </div>
 
           {/* Right: Notifications & Profile */}

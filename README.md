@@ -52,9 +52,19 @@ npm install
      `https://<your-domain>/__/auth/handler` to **Authorized redirect URIs**.
 7. Optional, for branded reset emails: **Authentication > Templates > Password reset > Customize action URL**,
    set it to `https://<your-domain>/reset-password`. Without this, Firebase's hosted reset page is used.
+8. **AI assistant (Smart Insights)**: create an API key at [console.groq.com](https://console.groq.com/keys) and add these
+   **server-side** environment variables in Vercel (no `VITE_` prefix, so they never reach the browser):
+   - `GROQ_API_KEY` (required): without it the assistant shows "AI insights aren't set up yet".
+   - `GROQ_MODEL` (optional): defaults to `openai/gpt-oss-120b`.
+   - `FIREBASE_PROJECT_ID` (optional): defaults to `VITE_FIREBASE_PROJECT_ID`; used to verify callers' sign-in tokens.
 
-Data layout: each user's business profile is the document `users/{uid}`, with `customers`, `invoices`
-and `expenses` subcollections beneath it. The rules only let a signed-in user access their own `users/{uid}` tree.
+   The function lives in `api/ai-insights.ts` (logic in `server/`). It only accepts signed-in users and sends Groq the
+   figures the app has already calculated; the model is told not to invent numbers.
+
+Whenever `firestore.rules` changes, publish it again (paste it into **Firestore > Rules**).
+
+Data layout: each user's business profile is the document `users/{uid}`, with `customers`, `invoices`,
+`expenses` and `vatReturns` (returns marked as filed) subcollections beneath it. The rules only let a signed-in user access their own `users/{uid}` tree.
 
 ### Local Development Without a Firebase Project
 
@@ -67,7 +77,18 @@ npm run emulators
 Then set `VITE_USE_FIREBASE_EMULATORS=true` and `VITE_FIREBASE_PROJECT_ID=demo-vatclear` in `.env.local`
 (the other Firebase values can be any placeholder). Password reset links appear in the emulator log.
 
+### Tests
+
+```bash
+npm test
+```
+
+Unit tests cover the VAT and money calculations (`src/lib/finance.ts`) and the AI endpoint (`server/`).
+
 ### Start Development Server
+
+`npm run dev` serves the app only. To try the AI assistant locally, run `npx vercel dev` instead (it also serves
+`/api`), with `GROQ_API_KEY` in your environment.
 
 ```bash
 npm run dev
