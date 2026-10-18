@@ -61,6 +61,23 @@ npm install
    The function lives in `api/ai-insights.ts` (logic in `server/`). It only accepts signed-in users and sends Groq the
    figures the app has already calculated; the model is told not to invent numbers.
 
+9. **Admin console** (`/admin`): add these **server-side** environment variables in Vercel, then redeploy:
+   - `ADMIN_EMAIL` and `ADMIN_PASSWORD`: the admin sign-in. This is separate from customer accounts; it isn't
+     a Firebase user. Use a long, unique password. Changing it signs out every admin session.
+   - `FIREBASE_SERVICE_ACCOUNT`: lets the server read all users' data. In the Firebase console go to
+     **Project settings > Service accounts > Generate new private key**, and paste the whole downloaded JSON file
+     as the value. Keep it secret: it has full access to the project.
+   - `ADMIN_SESSION_SECRET` (optional): extra secret for signing admin sessions; defaults to the service account key.
+
+   Admin sessions last 8 hours in an HttpOnly cookie; 10 wrong passwords from one address lock sign-in for 15 minutes.
+   The console shows who's online now, visits per day and week, sign-ups, every account (with disable/enable and
+   password-reset email), and each business's records, where invoices can be deleted. Disabling an account, sending
+   a reset and deleting an invoice are recorded in the `adminLog` Firestore collection.
+
+   Visits are counted anonymously by `api/track.ts` (a random id stored in the browser, nothing personal) into the
+   `stats_visits`, `stats_visitors` and `presence` collections. Only the server can read these; the security rules
+   don't let browsers touch them. The functions need Node 22 (set in `package.json`).
+
 Whenever `firestore.rules` changes, publish it again (paste it into **Firestore > Rules**).
 
 Data layout: each user's business profile is the document `users/{uid}`, with `customers`, `invoices`,
@@ -83,12 +100,15 @@ Then set `VITE_USE_FIREBASE_EMULATORS=true` and `VITE_FIREBASE_PROJECT_ID=demo-v
 npm test
 ```
 
-Unit tests cover the VAT and money calculations (`src/lib/finance.ts`) and the AI endpoint (`server/`).
+Unit tests cover the VAT and money calculations (`src/lib/finance.ts`), the AI endpoint, and the admin
+session, login limits and visit tracking (`server/`).
 
 ### Start Development Server
 
-`npm run dev` serves the app only. To try the AI assistant locally, run `npx vercel dev` instead (it also serves
-`/api`), with `GROQ_API_KEY` in your environment.
+`npm run dev` serves the app only. To try the AI assistant or admin console locally, run `npx vercel dev` instead
+(it also serves `/api`), with `GROQ_API_KEY` / the admin variables in your environment. Against the emulators, the
+admin console needs `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` and `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099`
+instead of `FIREBASE_SERVICE_ACCOUNT`.
 
 ```bash
 npm run dev
@@ -154,6 +174,7 @@ Config files:
 - `/` - Landing Page
 - `/login` - Login/Sign-in Page
 - `/dashboard` - Main Dashboard
+- `/admin` - Admin console (separate admin sign-in)
 
 ## License
 
