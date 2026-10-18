@@ -36,13 +36,21 @@ npm install
 ### Configure Firebase
 
 1. Create a project in the [Firebase console](https://console.firebase.google.com/).
-2. **Authentication > Sign-in method**: enable **Email/Password**.
+2. **Authentication > Sign-in method**: enable **Email/Password** and **Google**.
 3. **Authentication > Settings > Authorized domains**: add your production domain (e.g. your Vercel domain).
 4. **Firestore Database**: create a database, then deploy the security rules in `firestore.rules`
    (paste them into **Firestore > Rules**, or run `npx firebase-tools deploy --only firestore:rules --project <project-id>`).
 5. **Project settings > General > Your apps**: add a Web app and copy its config into `.env.local`
    (see `.env.example`). Set the same variables in Vercel's project settings.
-6. Optional, for branded reset emails: **Authentication > Templates > Password reset > Customize action URL**,
+6. **Google sign-in on Safari/iOS**: Safari blocks the cross-site storage Google sign-in relies on when
+   it runs on `<project-id>.firebaseapp.com`. `vercel.json` proxies `/__/auth/*` to that domain so it can
+   run on yours instead. To use it:
+   - Set `VITE_FIREBASE_AUTH_DOMAIN` (in Vercel) to your production domain, e.g. `thetaxapp.vercel.app`,
+     and update the project ID in the `vercel.json` proxy route if you use a different Firebase project.
+   - In [Google Cloud console > APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials),
+     open the **Web client (auto created by Google Service)** OAuth client and add
+     `https://<your-domain>/__/auth/handler` to **Authorized redirect URIs**.
+7. Optional, for branded reset emails: **Authentication > Templates > Password reset > Customize action URL**,
    set it to `https://<your-domain>/reset-password`. Without this, Firebase's hosted reset page is used.
 
 Data layout: each user's business profile is the document `users/{uid}`, with `customers`, `invoices`
