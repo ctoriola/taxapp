@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading, user, profile } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +29,11 @@ export default function LoginPage() {
       setError(message);
     }
   };
+
+  // Already signed in, e.g. returning from a Google redirect sign-in
+  if (user && !isLoading) {
+    return <Navigate to={profile ? '/dashboard' : '/complete-profile'} replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4">
@@ -115,6 +121,10 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-slate-300"></div>
             <span className="px-4 text-sm text-slate-500">or</span>
             <div className="flex-1 h-px bg-slate-300"></div>
+          </div>
+
+          <div className="mb-6">
+            <GoogleSignInButton onError={setError} disabled={isLoading} />
           </div>
 
           {/* Additional Options */}

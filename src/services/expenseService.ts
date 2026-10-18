@@ -1,5 +1,5 @@
-import { addDoc, deleteDoc, getDoc, getDocs, orderBy, query, updateDoc, where } from 'firebase/firestore';
-import { now, requireUid, userCollection, userCollectionDoc, withId } from './db';
+import { deleteDoc, doc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { getDocFast, now, requireUid, settleWrite, userCollection, userCollectionDoc, withId } from './db';
 
 export interface Expense {
   id: string;
@@ -17,23 +17,11 @@ export interface Expense {
   updated_at: string;
 }
 
-// Fetch all expenses for the authenticated user
-export async function fetchExpenses(): Promise<Expense[]> {
-  try {
-    const uid = await requireUid();
-    const snapshot = await getDocs(query(userCollection(uid, 'expenses'), orderBy('expense_date', 'desc')));
-    return snapshot.docs.map((d) => withId<Expense>(d));
-  } catch (error) {
-    console.error('Error fetching expenses:', error);
-    throw error;
-  }
-}
-
 // Fetch a single expense
 export async function fetchExpense(id: string): Promise<Expense> {
   try {
     const uid = await requireUid();
-    const snapshot = await getDoc(userCollectionDoc(uid, 'expenses', id));
+    const snapshot = await getDocFast(userCollectionDoc(uid, 'expenses', id));
     if (!snapshot.exists()) throw new Error('Expense not found');
     return withId<Expense>(snapshot);
   } catch (error) {
@@ -73,7 +61,8 @@ export async function createExpense(
       updated_at: timestamp,
     };
 
-    const ref = await addDoc(userCollection(uid, 'expenses'), data);
+    const ref = doc(userCollection(uid, 'expenses'));
+    await settleWrite(setDoc(ref, data));
     return { id: ref.id, ...data };
   } catch (error) {
     console.error('Error creating expense:', error);
@@ -88,7 +77,7 @@ export async function updateExpenseStatus(
 ): Promise<Expense> {
   try {
     const uid = await requireUid();
-    await updateDoc(userCollectionDoc(uid, 'expenses', id), { status, updated_at: now() });
+    await settleWrite(updateDoc(userCollectionDoc(uid, 'expenses', id), { status, updated_at: now() }));
     return fetchExpense(id);
   } catch (error) {
     console.error('Error updating expense status:', error);
@@ -120,7 +109,7 @@ export async function updateExpense(
       dataToUpdate = { ...dataToUpdate, vat_amount, total_amount };
     }
 
-    await updateDoc(userCollectionDoc(uid, 'expenses', id), dataToUpdate);
+    await settleWrite(updateDoc(userCollectionDoc(uid, 'expenses', id), dataToUpdate));
     return fetchExpense(id);
   } catch (error) {
     console.error('Error updating expense:', error);
@@ -132,7 +121,7 @@ export async function updateExpense(
 export async function deleteExpense(id: string): Promise<void> {
   try {
     const uid = await requireUid();
-    await deleteDoc(userCollectionDoc(uid, 'expenses', id));
+    await settleWrite(deleteDoc(userCollectionDoc(uid, 'expenses', id)));
   } catch (error) {
     console.error('Error deleting expense:', error);
     throw error;

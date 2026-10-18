@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, Trash2, Mail, Phone, Building2, ArrowUpRight, Menu, X, LogOut, Settings, Bell, Home } from 'lucide-react';
-import { useCustomers } from '../context/CustomersContext';
+import { useCustomers } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
-  const { customers, deleteCustomer, refreshCustomers, isLoading, error } = useCustomers();
+  const { customers, deleteCustomer, isLoading, error } = useCustomers();
   const { user, profile, signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -20,10 +20,6 @@ export default function CustomersPage() {
       console.error('Logout failed:', err);
     }
   };
-
-  useEffect(() => {
-    refreshCustomers();
-  }, [refreshCustomers]);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery.trim()) return customers;

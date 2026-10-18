@@ -409,7 +409,7 @@ export default function SettingsPage() {
                   <div className="border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center cursor-pointer hover:bg-stone-50 transition-colors">
                     <Upload className="w-6 h-6 text-stone-400 mx-auto mb-2" />
                     <p className="text-sm text-stone-600">Click to upload company logo</p>
-                    <p className="text-xs text-stone-500 mt-1">PNG, JPG up to 5MB (Optional)</p>
+                    <p className="text-xs text-stone-500 mt-1">PNG, JPG up to 500 KB (Optional)</p>
                   </div>
                 </label>
               )}

@@ -2,19 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, X as XIcon, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useCustomers } from '../context/CustomersContext';
+import { useCustomers, useInvoices } from '../context/DataContext';
 import CustomerSelect from '../components/CustomerSelect';
 import NewCustomerModal from '../components/NewCustomerModal';
 import InvoiceLineItem, { LineItem } from '../components/InvoiceLineItem';
 import InvoiceSummary from '../components/InvoiceSummary';
-import { fetchInvoice, updateInvoice, Invoice } from '../services/invoiceService';
+import { updateInvoice, Invoice } from '../services/invoiceService';
 
 
 export default function EditInvoicePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { customers, refreshCustomers } = useCustomers();
+  const { customers } = useCustomers();
+  const { invoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
@@ -29,34 +30,24 @@ export default function EditInvoicePage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Load customers and invoice on mount
+  // Fill the form once the invoice is available from the live store. Later updates to the
+  // stored invoice don't overwrite edits in progress.
   useEffect(() => {
-    if (id) {
-      const loadData = async () => {
-        // Load customers first to ensure they're available for selection
-        await refreshCustomers();
-        loadInvoice(id);
-      };
-      loadData();
+    if (invoice || invoicesLoading || !id) return;
+
+    if (invoicesError) {
+      setErrorMessage(invoicesError);
+      setIsLoading(false);
+      return;
     }
-  }, [id, refreshCustomers]);
 
-  const loadInvoice = async (invoiceId: string) => {
-    try {
-      setIsLoading(true);
-      const data = await fetchInvoice(invoiceId);
-
-      if (!data) {
-        setErrorMessage('Invoice not found');
-        return;
-      }
-
+    const data = invoices.find((i) => i.id === id);
+    if (!data) {
+      setErrorMessage('Invoice not found');
+    } else if (data.status !== 'draft') {
       // Only allow editing draft invoices
-      if (data.status !== 'draft') {
-        setErrorMessage('Only draft invoices can be edited');
-        return;
-      }
-
+      setErrorMessage('Only draft invoices can be edited');
+    } else {
       setInvoice(data);
       setSelectedCustomer(data.customer_id);
       setInvoiceDate(data.invoice_date);
@@ -68,13 +59,9 @@ export default function EditInvoicePage() {
         ...item,
         id: item.id || `${Date.now()}-${index}`,
       })));
-    } catch (err) {
-      console.error('Error loading invoice:', err);
-      setErrorMessage('Failed to load invoice');
-    } finally {
-      setIsLoading(false);
     }
-  };
+    setIsLoading(false);
+  }, [id, invoice, invoices, invoicesLoading, invoicesError]);
 
   const calculateTotals = () => {
     const subtotal = lineItems.reduce((sum, item) => sum + item.line_total, 0);
@@ -127,9 +114,7 @@ export default function EditInvoicePage() {
       });
 
       setSuccessMessage('Invoice updated successfully');
-      setTimeout(() => {
-        navigate(`/invoices/${invoice.id}`);
-      }, 1000);
+      navigate(`/invoices/${invoice.id}`);
     } catch (err) {
       console.error('Error updating invoice:', err);
       setErrorMessage('Failed to update invoice');

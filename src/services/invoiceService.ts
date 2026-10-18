@@ -1,5 +1,5 @@
-import { addDoc, getDoc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore';
-import { currentUid, now, requireUid, userCollection, userCollectionDoc, withId } from './db';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { getDocFast, now, requireUid, settleWrite, userCollection, userCollectionDoc, withId } from './db';
 
 export interface InvoiceLineItem {
   id?: string;
@@ -54,7 +54,8 @@ export async function createInvoice(invoice: Omit<Invoice, 'id' | 'created_at' |
       updated_at: timestamp,
     };
 
-    const ref = await addDoc(userCollection(uid, 'invoices'), data);
+    const ref = doc(userCollection(uid, 'invoices'));
+    await settleWrite(setDoc(ref, data));
     return { id: ref.id, ...data };
   } catch (err) {
     console.error('Error creating invoice:', err);
@@ -62,24 +63,10 @@ export async function createInvoice(invoice: Omit<Invoice, 'id' | 'created_at' |
   }
 }
 
-// Get invoices
-export async function fetchInvoices(): Promise<Invoice[]> {
-  try {
-    const uid = await currentUid();
-    if (!uid) return [];
-
-    const snapshot = await getDocs(query(userCollection(uid, 'invoices'), orderBy('created_at', 'desc')));
-    return snapshot.docs.map((d) => withId<Invoice>(d));
-  } catch (err) {
-    console.warn('Error fetching invoices:', err);
-    return [];
-  }
-}
-
 // Get a single invoice, or null if it doesn't exist
 export async function fetchInvoice(id: string): Promise<Invoice | null> {
   const uid = await requireUid();
-  const snapshot = await getDoc(userCollectionDoc(uid, 'invoices', id));
+  const snapshot = await getDocFast(userCollectionDoc(uid, 'invoices', id));
   return snapshot.exists() ? withId<Invoice>(snapshot) : null;
 }
 
@@ -87,7 +74,7 @@ export async function fetchInvoice(id: string): Promise<Invoice | null> {
 export async function updateInvoice(id: string, updates: InvoiceUpdate): Promise<void> {
   try {
     const uid = await requireUid();
-    await updateDoc(userCollectionDoc(uid, 'invoices', id), { ...updates, updated_at: now() });
+    await settleWrite(updateDoc(userCollectionDoc(uid, 'invoices', id), { ...updates, updated_at: now() }));
   } catch (err) {
     console.error('Error updating invoice:', err);
     throw err;
