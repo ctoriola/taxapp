@@ -6,6 +6,9 @@ import {
   verifyPasswordResetCode,
   confirmPasswordReset,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
   User,
 } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
@@ -14,10 +17,11 @@ import { auth } from '../lib/firebase';
 export interface AuthUser {
   id: string;
   email: string;
+  displayName: string;
 }
 
 function toAuthUser(user: User): AuthUser {
-  return { id: user.uid, email: user.email || '' };
+  return { id: user.uid, email: user.email || '', displayName: user.displayName || '' };
 }
 
 // Turn Firebase error codes into messages users can act on
@@ -40,6 +44,12 @@ function friendlyAuthError(err: unknown, fallback: string): Error {
       return new Error('Too many attempts. Please wait a few minutes and try again.');
     case 'auth/network-request-failed':
       return new Error('Connection error. Please check your internet and try again.');
+    case 'auth/account-exists-with-different-credential':
+      return new Error('An account already exists with this email. Sign in with your email and password instead.');
+    case 'auth/unauthorized-domain':
+      return new Error('Google sign-in is not enabled for this website yet. Please use email and password.');
+    case 'auth/operation-not-allowed':
+      return new Error('This sign-in method is not enabled. Please use email and password.');
     case 'auth/expired-action-code':
     case 'auth/invalid-action-code':
       return new Error('This reset link is invalid or has expired. Please request a new one.');
@@ -65,6 +75,30 @@ export async function signIn(email: string, password: string): Promise<AuthUser>
   } catch (err) {
     console.error('Sign in error:', err);
     throw friendlyAuthError(err, 'Sign in failed. Please try again.');
+  }
+}
+
+// Resolves with the signed-in user, or null if the user closed the Google popup
+export async function signInWithGoogle(): Promise<AuthUser | null> {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  try {
+    const { user } = await signInWithPopup(auth, provider);
+    return toAuthUser(user);
+  } catch (err) {
+    const code = err instanceof FirebaseError ? err.code : '';
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      return null;
+    }
+    // Some browsers block popups; fall back to a full-page redirect, which the auth
+    // state listener picks up when the user returns
+    if (code === 'auth/popup-blocked') {
+      await signInWithRedirect(auth, provider);
+      return null;
+    }
+    console.error('Google sign in error:', err);
+    throw friendlyAuthError(err, 'Google sign-in failed. Please try again.');
   }
 }
 

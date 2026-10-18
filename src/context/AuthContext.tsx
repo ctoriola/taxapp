@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { AuthUser, signIn, signUp, signOut, getCurrentUser, onAuthStateChange } from '../services/authService';
+import { AuthUser, signIn, signUp, signOut, signInWithGoogle, onAuthStateChange } from '../services/authService';
 import { fetchUserProfile, UserProfile } from '../services/customerService';
 
 interface AuthContextType {
@@ -9,6 +9,8 @@ interface AuthContextType {
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
+  // Resolves to null if the user cancelled; hasProfile is false for first-time Google users
+  signInWithGoogle: () => Promise<{ hasProfile: boolean } | null>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -22,51 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkUser = async () => {
-      try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
-        
-        // Fetch user profile
-        if (currentUser) {
-          const userProfile = await fetchUserProfile();
-          setProfile(userProfile);
-        }
-      } catch (err) {
-        console.warn('Error checking auth state:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Firebase reports the restored session (or none) first, then every sign-in/out.
+    // The user is only published once their profile has loaded, so routes never see a
+    // signed-in user whose profile is still in flight.
+    const subscription = onAuthStateChange(async (authUser) => {
+      const userProfile = authUser ? await fetchUserProfile() : null;
+      setProfile(userProfile);
+      setUser(authUser);
+      setIsLoading(false);
+    });
 
-    checkUser();
-
-    // Listen for auth changes
-    let subscription: any;
-    try {
-      subscription = onAuthStateChange(async (authUser) => {
-        setUser(authUser);
-        
-        // Fetch user profile when auth changes
-        if (authUser) {
-          const userProfile = await fetchUserProfile();
-          setProfile(userProfile);
-        } else {
-          setProfile(null);
-        }
-      });
-    } catch (err) {
-      console.warn('Error setting up auth listener:', err);
-    }
-
-    return () => {
-      try {
-        subscription?.unsubscribe();
-      } catch (err) {
-        console.warn('Error unsubscribing from auth changes:', err);
-      }
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleSignIn = async (email: string, password: string) => {
@@ -85,6 +53,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw err;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSignInWithGoogle = async () => {
+    setError(null);
+    try {
+      const googleUser = await signInWithGoogle();
+      if (!googleUser) return null;
+
+      const userProfile = await fetchUserProfile();
+      setProfile(userProfile);
+      setUser(googleUser);
+      return { hasProfile: userProfile !== null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to sign in with Google';
+      setError(message);
+      throw err;
     }
   };
 
@@ -139,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error,
         signIn: handleSignIn,
         signUp: handleSignUp,
+        signInWithGoogle: handleSignInWithGoogle,
         signOut: handleSignOut,
         refreshProfile: handleRefreshProfile,
       }}
