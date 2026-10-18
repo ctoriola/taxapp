@@ -7,7 +7,6 @@ import {
   confirmPasswordReset,
   onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   User,
@@ -82,32 +81,50 @@ export async function signIn(email: string, password: string): Promise<AuthUser>
   }
 }
 
-// Resolves with the signed-in user, or null if the user closed the Google popup
-export async function signInWithGoogle(): Promise<AuthUser | null> {
+// Marks this tab as mid Google sign-in, so the app can show "Signing you in" on return
+const GOOGLE_REDIRECT_KEY = 'vatclear:googleRedirect';
+
+export function isReturningFromGoogle(): boolean {
+  try {
+    return sessionStorage.getItem(GOOGLE_REDIRECT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function clearGoogleRedirectMarker(): void {
+  try {
+    sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+  } catch {
+    // Storage unavailable; nothing to clear
+  }
+}
+
+// Sends this tab to Google and back. Popups are unreliable here: Google's sign-in pages cut
+// the popup off from the app (Cross-Origin-Opener-Policy), so the app often never heard the
+// result. With authDomain on our own domain (see vercel.json), a redirect works in every
+// browser, Safari included. On return, Firebase signs the user in during startup.
+export async function signInWithGoogle(): Promise<void> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
   try {
-    const { user } = await signInWithPopup(auth, provider);
-    return toAuthUser(user);
+    sessionStorage.setItem(GOOGLE_REDIRECT_KEY, '1');
+  } catch {
+    // Only affects the "Signing you in" screen
+  }
+
+  try {
+    await signInWithRedirect(auth, provider);
   } catch (err) {
-    const code = err instanceof FirebaseError ? err.code : '';
-    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-      return null;
-    }
-    // Some browsers block popups; fall back to a full-page redirect, which the auth
-    // state listener picks up when the user returns
-    if (code === 'auth/popup-blocked') {
-      await signInWithRedirect(auth, provider);
-      return null;
-    }
+    clearGoogleRedirectMarker();
     console.error('Google sign in error:', err);
     throw friendlyAuthError(err, 'Google sign-in failed. Please try again.');
   }
 }
 
-// After a redirect sign-in (the fallback when popups are blocked), Firebase holds the outcome
-// until it's read. Reading it surfaces failures that would otherwise vanish silently.
+// After returning from Google, Firebase holds the outcome until it's read. Reading it
+// surfaces failures that would otherwise vanish silently.
 export async function completeRedirectSignIn(): Promise<AuthUser | null> {
   try {
     const result = await getRedirectResult(auth);

@@ -3,6 +3,7 @@ import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, User } from 'lucide-react';
 import BusinessDetailsFields from '../components/BusinessDetailsFields';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import SigningInScreen from '../components/SigningInScreen';
 import { useAuth } from '../context/AuthContext';
 import { saveUserProfile, uploadCompanyLogo } from '../services/customerService';
 import { signUp as authSignUp } from '../services/authService';
@@ -26,7 +27,7 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { user, profile, isLoading: authLoading, refreshProfile } = useAuth();
+  const { user, profile, isLoading: authLoading, refreshProfile, isCompletingGoogleSignIn } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -151,6 +152,10 @@ export default function SignupPage() {
   // Already signed in (and not midway through creating this account)
   if (user && !authLoading && !isLoading && !success) {
     return <Navigate to={profile ? '/dashboard' : '/complete-profile'} replace />;
+  }
+
+  if (isCompletingGoogleSignIn) {
+    return <SigningInScreen />;
   }
 
   return (

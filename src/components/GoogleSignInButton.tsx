@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { completeRedirectSignIn } from '../services/authService';
 
@@ -11,42 +10,21 @@ interface GoogleSignInButtonProps {
 export default function GoogleSignInButton({ onError, disabled }: GoogleSignInButtonProps) {
   const { signInWithGoogle } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const navigate = useNavigate();
 
-  // Returning from a redirect sign-in: on success the auth listener signs the user in and
-  // the page sends them onward; on failure, say why instead of showing a blank form
+  // Back from Google: on success the user is already signed in and the page sends them on;
+  // on failure, say why instead of silently showing the form again
   useEffect(() => {
     completeRedirectSignIn().catch((err) => onError(err.message));
   }, [onError]);
 
-  // Firebase only notices a closed popup ~10s later, which leaves the button looking stuck.
-  // Re-enable it shortly after focus returns to this page; a successful sign-in still
-  // resolves and navigates as normal.
-  useEffect(() => {
-    if (!isSigningIn) return;
-    let timer: number | undefined;
-    const handleFocus = () => {
-      timer = window.setTimeout(() => setIsSigningIn(false), 1000);
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      window.clearTimeout(timer);
-    };
-  }, [isSigningIn]);
-
+  // The page navigates away to Google, so this only resets if the redirect fails to start
   const handleClick = async () => {
     onError('');
     setIsSigningIn(true);
     try {
-      const result = await signInWithGoogle();
-      if (!result) return;
-
-      // First-time Google users haven't given us their business details yet
-      navigate(result.hasProfile ? '/dashboard' : '/complete-profile', { replace: true });
+      await signInWithGoogle();
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
-    } finally {
       setIsSigningIn(false);
     }
   };
