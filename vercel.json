@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "routes": [
     {
+      "src": "/__/(auth|firebase)/(.*)",
+      "dest": "https://taxapp-f184c.firebaseapp.com/__/$1/$2"
+    },
+    {
       "handle": "filesystem"
     },
     {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { completeRedirectSignIn } from '../services/authService';
 
 interface GoogleSignInButtonProps {
   onError: (message: string) => void;
@@ -11,6 +12,12 @@ export default function GoogleSignInButton({ onError, disabled }: GoogleSignInBu
   const { signInWithGoogle } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const navigate = useNavigate();
+
+  // Returning from a redirect sign-in: on success the auth listener signs the user in and
+  // the page sends them onward; on failure, say why instead of showing a blank form
+  useEffect(() => {
+    completeRedirectSignIn().catch((err) => onError(err.message));
+  }, [onError]);
 
   // Firebase only notices a closed popup ~10s later, which leaves the button looking stuck.
   // Re-enable it shortly after focus returns to this page; a successful sign-in still

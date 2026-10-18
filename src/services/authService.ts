@@ -9,6 +9,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   User,
 } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
@@ -49,6 +50,8 @@ function friendlyAuthError(err: unknown, fallback: string): Error {
       return new Error('An account already exists with this email. Sign in with your email and password instead.');
     case 'auth/unauthorized-domain':
       return new Error('Google sign-in is not enabled for this website yet. Please use email and password.');
+    case 'auth/web-storage-unsupported':
+      return new Error('Your browser is blocking the storage Google sign-in needs. Allow cookies for this site, or sign in with email and password.');
     case 'auth/operation-not-allowed':
       return new Error('This sign-in method is not enabled. Please use email and password.');
     case 'auth/expired-action-code':
@@ -99,6 +102,18 @@ export async function signInWithGoogle(): Promise<AuthUser | null> {
       return null;
     }
     console.error('Google sign in error:', err);
+    throw friendlyAuthError(err, 'Google sign-in failed. Please try again.');
+  }
+}
+
+// After a redirect sign-in (the fallback when popups are blocked), Firebase holds the outcome
+// until it's read. Reading it surfaces failures that would otherwise vanish silently.
+export async function completeRedirectSignIn(): Promise<AuthUser | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    return result ? toAuthUser(result.user) : null;
+  } catch (err) {
+    console.error('Google redirect sign in error:', err);
     throw friendlyAuthError(err, 'Google sign-in failed. Please try again.');
   }
 }
