@@ -4,6 +4,7 @@ import { AlertCircle, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { saveUserProfile, uploadCompanyLogo } from '../services/customerService';
 import BusinessDetailsFields from '../components/BusinessDetailsFields';
+import AuthLayout from '../components/AuthLayout';
 
 // Shown after a first-time Google sign-in, which skips the signup form's business step
 export default function CompleteProfilePage() {
@@ -23,8 +24,8 @@ export default function CompleteProfilePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-12 h-12 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-brand-canvas">
+        <div className="w-12 h-12 border-4 border-brand-line border-t-brand-forest rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -99,33 +100,27 @@ export default function CompleteProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">VATClear</h1>
-          <p className="text-slate-900 font-semibold">Tell us about your business</p>
-          <p className="text-sm text-slate-600 mt-1">Signed in as {user.email}. This appears on your invoices.</p>
-        </div>
+    <AuthLayout title="Tell us about your business" subtitle={<>Signed in as {user.email}. This appears on your invoices.</>}>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="rounded-2xl border border-brand-down/20 bg-brand-down/5 p-4 mb-6 flex gap-3">
+            <AlertCircle className="w-5 h-5 text-brand-down flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-brand-down">{error}</p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
+            <label className="field-label">Full Name</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
               <input
                 type="text"
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Your full name"
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="input-field pl-12 bg-white"
               />
             </div>
           </div>
@@ -141,19 +136,18 @@ export default function CompleteProfilePage() {
           <button
             type="submit"
             disabled={isSaving}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+            className="btn-primary w-full h-12"
           >
             {isSaving ? 'Saving...' : 'Continue to Dashboard'}
           </button>
         </form>
 
-        <p className="text-center text-slate-600 text-sm mt-6">
+        <p className="text-center text-brand-muted text-sm mt-6">
           Wrong account?{' '}
-          <button type="button" onClick={handleSignOut} className="text-blue-600 hover:underline font-medium">
+          <button type="button" onClick={handleSignOut} className="font-semibold text-brand-forest hover:underline">
             Sign out
           </button>
         </p>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

@@ -4,6 +4,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import SigningInScreen from '../components/SigningInScreen';
+import AuthLayout from '../components/AuthLayout';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -41,121 +42,85 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <Link to="/" className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent inline-block mb-6">
-            VATClear
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Sign in to see your VAT, invoices and expenses."
+      footer={
+        <>
+          Don't have an account?{' '}
+          <Link to="/signup" className="font-semibold text-brand-forest hover:underline">
+            Create Account
           </Link>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h1>
-          <p className="text-slate-600">Sign in to your account to manage your VAT</p>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {error && (
+          <div role="alert" className="rounded-2xl border border-brand-down/20 bg-brand-down/5 p-4 flex gap-3">
+            <AlertCircle className="w-5 h-5 text-brand-down flex-shrink-0 mt-0.5" />
+            <p className="text-brand-down text-sm">{error}</p>
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="email" className="field-label">Email Address</label>
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@business.com"
+              autoComplete="email"
+              className="input-field pl-12 bg-white"
+              required
+            />
+          </div>
         </div>
 
-        {/* Login Card */}
-        <div className="card p-8 mb-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error Alert */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
-            )}
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-900 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-3 w-5 h-5 text-slate-400" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@business.com"
-                  className="input-field pl-12"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-900 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-3 w-5 h-5 text-slate-400" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="input-field pl-12 pr-12"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-3 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="password" className="text-sm font-medium text-brand-ink">Password</label>
+            <Link to="/forgot-password" className="text-sm font-semibold text-brand-forest hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              className="input-field pl-12 pr-12 bg-white"
+              required
+            />
             <button
-              type="submit"
-              disabled={isLoading}
-              className="btn-primary w-full"
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-ink transition-colors"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
-          </form>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center">
-            <div className="flex-1 h-px bg-slate-300"></div>
-            <span className="px-4 text-sm text-slate-500">or</span>
-            <div className="flex-1 h-px bg-slate-300"></div>
-          </div>
-
-          <div className="mb-6">
-            <GoogleSignInButton onError={setError} disabled={isLoading} />
-          </div>
-
-          {/* Additional Options */}
-          <div className="space-y-3 text-center text-sm">
-            <p className="text-slate-600">
-              Don't have an account?{' '}
-              <Link
-                to="/signup"
-                className="text-blue-600 font-semibold hover:text-blue-700"
-              >
-                Create Account
-              </Link>
-            </p>
-            <p className="text-slate-600">
-              <Link to="/forgot-password" className="text-blue-600 font-semibold hover:text-blue-700">
-                Forgot password?
-              </Link>
-            </p>
           </div>
         </div>
 
-        {/* Footer Note */}
-        <div className="text-center text-xs text-slate-500">
-          <p>Secure login. Your data is encrypted and protected.</p>
-        </div>
+        <button type="submit" disabled={isLoading} className="btn-primary w-full h-12">
+          {isLoading ? 'Signing in...' : 'Sign In'}
+        </button>
+      </form>
+
+      <div className="my-6 flex items-center gap-4">
+        <div className="flex-1 h-px bg-brand-line"></div>
+        <span className="text-sm text-brand-muted">or</span>
+        <div className="flex-1 h-px bg-brand-line"></div>
       </div>
-    </div>
+
+      <GoogleSignInButton onError={setError} disabled={isLoading} />
+    </AuthLayout>
   );
 }

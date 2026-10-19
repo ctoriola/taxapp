@@ -40,6 +40,11 @@
     @apply w-full px-4 py-3 rounded-2xl border border-brand-line bg-brand-canvas/60 text-brand-ink placeholder:text-brand-muted focus:outline-none focus:ring-2 focus:ring-brand-forest focus:border-transparent focus:bg-white transition-colors;
   }
 
+  /* On the grey auth screens inputs sit directly on the canvas, so make them white */
+  .auth-form .input-field {
+    @apply bg-white;
+  }
+
   .field-label {
     @apply block text-sm font-medium text-brand-ink mb-2;
   }
