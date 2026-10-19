@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { verifyResetCode, resetPassword } from '../services/authService';
+import AuthLayout from '../components/AuthLayout';
 
 type LinkState = 'checking' | 'ready' | 'invalid';
 
@@ -64,35 +65,25 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <Link to="/" className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent inline-block mb-6">
-            VATClear
-          </Link>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Choose a new password</h1>
-          {email && <p className="text-slate-600">for {email}</p>}
-        </div>
-
-        <div className="card p-8 mb-6">
+    <AuthLayout title="Choose a new password" subtitle={email ? `for ${email}` : undefined}>
+        <div>
           {linkState === 'checking' && (
             <div className="text-center py-6">
-              <div className="w-10 h-10 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-slate-600">Verifying your reset link...</p>
+              <div className="w-10 h-10 border-4 border-brand-line border-t-brand-forest rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-brand-muted">Verifying your reset link...</p>
             </div>
           )}
 
           {linkState === 'invalid' && (
             <div className="space-y-6">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="rounded-2xl border border-brand-down/20 bg-brand-down/5 p-4 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-brand-down flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-medium text-red-900">This reset link is invalid or has expired</p>
-                  {linkError && <p className="text-sm text-red-700">{linkError}</p>}
+                  <p className="font-medium text-brand-down">This reset link is invalid or has expired</p>
+                  {linkError && !linkError.startsWith('This reset link is invalid') && <p className="text-sm text-brand-down">{linkError}</p>}
                 </div>
               </div>
-              <Link to="/forgot-password" className="btn-primary w-full block text-center">
+              <Link to="/forgot-password" className="btn-primary w-full h-12">
                 Request a new link
               </Link>
             </div>
@@ -101,41 +92,41 @@ export default function ResetPasswordPage() {
           {linkState === 'ready' && (
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-700 text-sm">{error}</p>
+                <div className="rounded-2xl border border-brand-down/20 bg-brand-down/5 p-4 flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-brand-down flex-shrink-0 mt-0.5" />
+                  <p className="text-brand-down text-sm">{error}</p>
                 </div>
               )}
               {success && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex gap-3">
-                  <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div className="rounded-2xl border border-brand-lime-deep/40 bg-brand-lime/40 p-4 flex gap-3">
+                  <CheckCircle className="w-5 h-5 text-brand-forest flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-emerald-900">Password updated</p>
-                    <p className="text-sm text-emerald-700">Taking you to sign in...</p>
+                    <p className="font-medium text-brand-forest">Password updated</p>
+                    <p className="text-sm text-brand-forest/80">Taking you to sign in...</p>
                   </div>
                 </div>
               )}
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-900 mb-2">
+                <label htmlFor="password" className="field-label">
                   New Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-3 w-5 h-5 text-slate-400" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="At least 8 characters"
-                    className="input-field pl-12 pr-12"
+                    className="input-field pl-12 pr-12 bg-white"
                     autoComplete="new-password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-3 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-ink transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -143,31 +134,30 @@ export default function ResetPasswordPage() {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-900 mb-2">
+                <label htmlFor="confirmPassword" className="field-label">
                   Confirm New Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-3 w-5 h-5 text-slate-400" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
                   <input
                     id="confirmPassword"
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter password"
-                    className="input-field pl-12"
+                    className="input-field pl-12 bg-white"
                     autoComplete="new-password"
                     required
                   />
                 </div>
               </div>
 
-              <button type="submit" disabled={isSubmitting || success} className="btn-primary w-full">
+              <button type="submit" disabled={isSubmitting || success} className="btn-primary w-full h-12">
                 {isSubmitting ? 'Updating...' : 'Update Password'}
               </button>
             </form>
           )}
         </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

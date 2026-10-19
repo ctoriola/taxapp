@@ -34,7 +34,7 @@ export default function GoogleSignInButton({ onError, disabled }: GoogleSignInBu
       type="button"
       onClick={handleClick}
       disabled={disabled || isSigningIn}
-      className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+      className="w-full h-12 flex items-center justify-center gap-3 px-4 bg-white border border-brand-line rounded-full font-semibold text-sm text-brand-ink hover:border-brand-forest/40 hover:bg-brand-canvas/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
     >
       <svg className="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />

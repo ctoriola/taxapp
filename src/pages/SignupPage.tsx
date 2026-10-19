@@ -3,6 +3,7 @@ import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, User } from 'lucide-react';
 import BusinessDetailsFields from '../components/BusinessDetailsFields';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import AuthLayout from '../components/AuthLayout';
 import SigningInScreen from '../components/SigningInScreen';
 import { useAuth } from '../context/AuthContext';
 import { saveUserProfile, uploadCompanyLogo } from '../services/customerService';
@@ -159,38 +160,45 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">VATClear</h1>
-          <p className="text-slate-600">Create your account</p>
-        </div>
-
-        {/* Step Indicator */}
-        <div className="flex gap-2 mb-8">
-          <div className={`flex-1 h-1 rounded-full transition-colors ${step === 1 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
-          <div className={`flex-1 h-1 rounded-full transition-colors ${step === 2 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
+    <AuthLayout
+      title="Create your account"
+      subtitle={step === 1 ? 'Start with your login details.' : 'Now your business. This appears on your invoices.'}
+      footer={
+        <>
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-brand-forest hover:underline">
+            Sign in here
+          </Link>
+        </>
+      }
+    >
+        {/* Step indicator */}
+        <div className="flex items-center gap-3 mb-6" aria-label={`Step ${step} of 2`}>
+          <span className="text-xs font-semibold uppercase tracking-wider text-brand-muted">Step {step} of 2</span>
+          <div className="flex-1 flex gap-1.5">
+            <div className="flex-1 h-1.5 rounded-full bg-brand-forest"></div>
+            <div className={`flex-1 h-1.5 rounded-full transition-colors ${step === 2 ? 'bg-brand-forest' : 'bg-brand-line'}`}></div>
+          </div>
         </div>
 
         {/* Success State */}
         {success && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6 flex gap-3">
-            <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="rounded-2xl border border-brand-lime-deep/40 bg-brand-lime/40 p-4 mb-6 flex gap-3">
+            <CheckCircle className="w-5 h-5 text-brand-forest flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-emerald-900">Account created successfully!</p>
-              <p className="text-sm text-emerald-700">Redirecting to dashboard...</p>
+              <p className="font-medium text-brand-forest">Account created successfully!</p>
+              <p className="text-sm text-brand-forest/80">Redirecting to dashboard...</p>
             </div>
           </div>
         )}
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="rounded-2xl border border-brand-down/20 bg-brand-down/5 p-4 mb-6 flex gap-3">
+            <AlertCircle className="w-5 h-5 text-brand-down flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-red-900">Error</p>
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="font-medium text-brand-down">Error</p>
+              <p className="text-sm text-brand-down">{error}</p>
             </div>
           </div>
         )}
@@ -200,53 +208,53 @@ export default function SignupPage() {
           <form onSubmit={handleNext} className="space-y-4">
             {/* Full Name */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
+              <label className="field-label">Full Name</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
                 <input
                   type="text"
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleChange}
                   placeholder="Your full name"
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="input-field pl-12 bg-white"
                 />
               </div>
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+              <label className="field-label">Email Address</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="you@company.com"
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="input-field pl-12 bg-white"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
+              <label className="field-label">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="At least 8 characters"
-                  className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="input-field pl-12 pr-12 bg-white"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-600 hover:text-slate-900"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-ink"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -255,21 +263,21 @@ export default function SignupPage() {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Confirm Password</label>
+              <label className="field-label">Confirm Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="Re-enter password"
-                  className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="input-field pl-12 pr-12 bg-white"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-600 hover:text-slate-900"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-ink"
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -280,7 +288,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+              className="btn-primary w-full h-12"
             >
               {isLoading ? 'Processing...' : 'Next'}
             </button>
@@ -290,9 +298,9 @@ export default function SignupPage() {
         {step === 1 && (
           <>
             <div className="my-6 flex items-center">
-              <div className="flex-1 h-px bg-slate-300"></div>
-              <span className="px-4 text-sm text-slate-500">or</span>
-              <div className="flex-1 h-px bg-slate-300"></div>
+              <div className="flex-1 h-px bg-brand-line"></div>
+              <span className="px-4 text-sm text-brand-muted">or</span>
+              <div className="flex-1 h-px bg-brand-line"></div>
             </div>
             <GoogleSignInButton onError={setError} disabled={isLoading} />
           </>
@@ -317,14 +325,14 @@ export default function SignupPage() {
                   setStep(1);
                   setError('');
                 }}
-                className="flex-1 border border-slate-300 text-slate-700 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+                className="btn-secondary flex-1 h-12"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+                className="btn-primary flex-1 h-12"
               >
                 {isLoading ? 'Creating Account...' : 'Create Account'}
               </button>
@@ -332,14 +340,6 @@ export default function SignupPage() {
           </form>
         )}
 
-        {/* Sign In Link */}
-        <p className="text-center text-slate-600 text-sm mt-6">
-          Already have an account?{' '}
-          <Link to="/login" className="text-blue-600 hover:underline font-medium">
-            Sign in here
-          </Link>
-        </p>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

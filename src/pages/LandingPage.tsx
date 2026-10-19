@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { withNaira } from '../components/dashboard/ui';
+import Logo from '../components/Logo';
 
 const NAV = [
   { label: 'Features', href: '#features' },
@@ -33,17 +34,6 @@ const STEPS = [
   { icon: <FileText className="w-5 h-5" />, title: 'Record invoices and expenses.', text: 'VAT is worked out as you go, at 7.5%, with VAT-free items flagged.' },
   { icon: <CalendarClock className="w-5 h-5" />, title: 'File on time, every month.', text: 'See what you owe before the 21st, then export the figures for your return.' },
 ];
-
-function Logo() {
-  return (
-    <span className="inline-flex items-center gap-2 text-xl font-bold tracking-tight text-brand-ink">
-      <span className="w-8 h-8 rounded-full bg-brand-lime text-brand-forest flex items-center justify-center" aria-hidden="true">
-        <Sparkle className="w-4 h-4" fill="currentColor" />
-      </span>
-      VATClear
-    </span>
-  );
-}
 
 function SectionLabel({ label, aside }: { label: string; aside: string }) {
   return (
