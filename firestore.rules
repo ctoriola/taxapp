@@ -1,8 +1,10 @@
 rules_version = '2';
 
-// Each user's data lives under users/{uid}: the profile is that document, and
-// customers, invoices, expenses and vatReturns are subcollections of it. Only the signed-in
-// owner can read or write anything there; everything else is denied.
+// Each user's data lives under users/{uid}: the profile is that document, and customers,
+// invoices, expenses, vatReturns (filed returns), branding (the invoice letterhead),
+// recurringInvoices (templates) and bankTransactions (imported statement lines) are
+// subcollections of it. Only the signed-in owner can read or write anything there; everything
+// else is denied.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isOwner(uid) {
@@ -14,7 +16,7 @@ service cloud.firestore {
 
       match /{collection}/{docId} {
         allow read, write: if isOwner(uid)
-          && collection in ['customers', 'invoices', 'expenses', 'vatReturns'];
+          && collection in ['customers', 'invoices', 'expenses', 'vatReturns', 'branding', 'recurringInvoices', 'bankTransactions'];
       }
     }
   }

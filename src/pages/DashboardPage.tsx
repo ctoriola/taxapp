@@ -37,7 +37,7 @@ export default function DashboardPage() {
   const { customers } = useCustomers();
   const { invoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
   const { expenses, isLoading: expensesLoading, error: expensesError } = useExpenses();
-  const { vatReturns } = useVatReturns();
+  const { vatReturns, isLoading: vatReturnsLoading } = useVatReturns();
   const { profile } = useAuth();
 
   const [hidden, setHidden] = useState(readHidden);
@@ -57,8 +57,8 @@ export default function DashboardPage() {
   const summary = useMemo(() => summarize(invoices, expenses, new Date()), [invoices, expenses]);
   const filedPeriods = useMemo(() => new Set(vatReturns.map((r) => r.period)), [vatReturns]);
   const insights = useMemo(
-    () => buildInsights(invoices, expenses, customers, new Date(), { filedPeriods, businessTin: profile?.tax_id }),
-    [invoices, expenses, customers, filedPeriods, profile?.tax_id]
+    () => buildInsights(invoices, expenses, customers, new Date(), { filedPeriods, filedPeriodsLoading: vatReturnsLoading, businessTin: profile?.tax_id }),
+    [invoices, expenses, customers, filedPeriods, vatReturnsLoading, profile?.tax_id]
   );
   const aiFacts = useMemo(
     () => buildAiFacts(invoices, expenses, customers, vatReturns, profile, new Date()),

@@ -10,6 +10,7 @@ const TABS = [
   { label: 'Overview', to: '/dashboard' },
   { label: 'Invoices', to: '/invoices' },
   { label: 'Expenses', to: '/expenses' },
+  { label: 'Bank', to: '/bank' },
   { label: 'Reports', to: '/reports' },
   { label: 'Customers', to: '/customers' },
 ];

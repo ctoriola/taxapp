@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Download, Send, Edit2, Copy, CheckCircle, Printer } from 'lucide-react';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Download, Send, Edit2, Copy, CheckCircle, Printer, Repeat } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { issueInvoice, updateInvoice } from '../services/invoiceService';
 import { invoiceMailto, openEmail } from '../lib/invoiceEmail';
+import { useLetterhead } from '../hooks/useLetterhead';
+import LetterheadBanner from '../components/LetterheadBanner';
 import { useCustomers, useInvoices } from '../context/DataContext';
 import PageHeader from '../components/PageHeader';
 import StatusPill, { PillTone } from '../components/StatusPill';
@@ -43,6 +45,7 @@ export default function InvoiceDetailPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { customers } = useCustomers();
+  const { letterhead } = useLetterhead();
   
   const { invoices, isLoading, error: loadError } = useInvoices();
   const invoice = invoices.find((i) => i.id === id) ?? null;
@@ -254,6 +257,12 @@ export default function InvoiceDetailPage() {
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
             {getCustomerName(invoice.customer_id)} · due {formatDate(invoice.due_date)}
+            {invoice.recurring_id && (
+              <Link to="/invoices/recurring" className="inline-flex items-center gap-1 rounded-full bg-brand-lime/50 px-2.5 py-0.5 text-xs font-semibold text-brand-forest hover:underline">
+                <Repeat className="w-3 h-3" />
+                From a recurring schedule
+              </Link>
+            )}
           </span>
         }
         actions={
@@ -322,17 +331,28 @@ export default function InvoiceDetailPage() {
 
       {/* Invoice Document (also printed and exported as PDF: plain text only, no ₦ drawing) */}
       <div id="invoice-document" className="bg-white rounded-[28px] max-w-4xl mx-auto overflow-hidden">
-        <div className="p-6 sm:p-10">
+        {letterhead && (
+          <div className="pt-4 sm:pt-6">
+            <LetterheadBanner letterhead={letterhead} />
+          </div>
+        )}
+        <div className={letterhead ? 'px-6 sm:px-10 pb-6 sm:pb-10 pt-4' : 'p-6 sm:p-10'}>
           {/* Header Section */}
           <div className="flex flex-wrap items-start justify-between gap-6 mb-10 pb-8 border-b border-brand-line">
             <div className="flex items-start gap-4 min-w-0">
-              {profile?.logo_url && (
+              {/* The letterhead replaces the small logo; business details show unless turned off */}
+              {!letterhead && profile?.logo_url && (
                 <img
                   src={profile.logo_url}
                   alt="Company logo"
                   className="h-16 w-auto"
                 />
               )}
+              {/* VAT invoices must show the seller's TIN, so it stays even when details are hidden */}
+              {letterhead && !letterhead.showDetails && profile?.tax_id && (
+                <p className="text-sm text-brand-muted">TIN: {profile.tax_id}</p>
+              )}
+              {(!letterhead || letterhead.showDetails) && (
               <div className="min-w-0">
                 <div className="text-2xl sm:text-3xl font-bold text-brand-ink mb-2 break-words">
                   {profile?.business_name || 'Your Company'}
@@ -346,6 +366,7 @@ export default function InvoiceDetailPage() {
                   </div>
                 )}
               </div>
+              )}
             </div>
             <div className="sm:text-right">
               <div className="mb-3">

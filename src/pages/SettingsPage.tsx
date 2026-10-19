@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Save, AlertCircle, CheckCircle, Loader, Upload, X as XIcon, User, Building2, ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateUserProfile, fetchUserProfile, UserProfile, uploadCompanyLogo } from '../services/customerService';
 import PageHeader from '../components/PageHeader';
 import { PanelTitle } from '../components/dashboard/ui';
+import LetterheadSettings from '../components/LetterheadSettings';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -17,7 +18,12 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // Once the user starts editing, live profile updates (e.g. the server copy arriving after the
+  // cached one) must not overwrite what they've typed
+  const isEditing = useRef(false);
+
   useEffect(() => {
+    if (isEditing.current) return;
     // Load profile data from context or fetch it
     const loadProfile = async () => {
       setIsLoading(true);
@@ -77,6 +83,7 @@ export default function SettingsPage() {
   }, [profile, user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    isEditing.current = true;
     const { name, value } = e.target;
     if (formData) {
       setFormData((prev) => ({
@@ -87,6 +94,7 @@ export default function SettingsPage() {
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isEditing.current = true;
     const file = e.target.files?.[0];
     if (file) {
       setLogoFile(file);
@@ -100,6 +108,7 @@ export default function SettingsPage() {
   };
 
   const removeLogo = () => {
+    isEditing.current = true;
     setLogoFile(null);
     setLogoPreview('');
     if (formData) {
@@ -149,6 +158,7 @@ export default function SettingsPage() {
       await refreshProfile();
       
       setSuccess(true);
+      isEditing.current = false;
       setLogoFile(null); // Clear the file input after successful upload
       
       // Reset success message after 2 seconds
@@ -338,6 +348,8 @@ export default function SettingsPage() {
           </button>
         </div>
       </form>
+
+      <LetterheadSettings />
 
       <div className="rounded-[28px] bg-brand-lime/30 p-5 sm:p-6">
         <h3 className="font-semibold text-brand-ink mb-1">Profile Information</h3>
