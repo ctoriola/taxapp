@@ -4,7 +4,26 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Urbanist', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+      },
       colors: {
+        // Dashboard palette: lime highlights, deep forest actions, warm orange accent, soft grey canvas
+        brand: {
+          lime: '#B8EC82',
+          'lime-soft': '#CFF3A9',
+          'lime-deep': '#8FD158',
+          green: '#3B841C', // accent text on light backgrounds (large text only)
+          forest: '#1D3A12',
+          'forest-hover': '#2A5019',
+          ink: '#141414',
+          canvas: '#F0F0EE',
+          line: '#E6E6E3',
+          muted: '#8A8A85',
+          orange: '#F2692B',
+          up: '#16803A',
+          down: '#D42C3A',
+        },
         slate: {
           50: "#f8fafc",
           100: "#f1f5f9",

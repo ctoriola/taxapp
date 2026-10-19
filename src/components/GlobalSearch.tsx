@@ -15,7 +15,7 @@ interface Result {
 const MAX_RESULTS = 8;
 
 // Header search across invoices, customers and expenses, from the live data already loaded
-export default function GlobalSearch() {
+export default function GlobalSearch({ autoFocus = false }: { autoFocus?: boolean }) {
   const { customers } = useCustomers();
   const { invoices } = useInvoices();
   const { expenses } = useExpenses();
@@ -108,6 +108,7 @@ export default function GlobalSearch() {
         onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder="Search invoices, customers, expenses..."
+        autoFocus={autoFocus}
         aria-label="Search invoices, customers and expenses"
         className="input-field pl-10 py-2.5"
       />

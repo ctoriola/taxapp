@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInsights, isOverdue, likelyVatFreeItems, summarize, unfiledPastDueReturns, upcomingVatReturn, vatDueDate } from './finance';
+import { buildInsights, monthActivity, percentChange, previousPeriodKey, isOverdue, likelyVatFreeItems, summarize, unfiledPastDueReturns, upcomingVatReturn, vatDueDate } from './finance';
 import type { Invoice } from '../services/invoiceService';
 import type { Expense } from '../services/expenseService';
 import type { Customer } from '../services/customerService';
@@ -229,5 +229,40 @@ describe('compliance checks', () => {
     expect(likelyVatFreeItems(invoice({ apply_vat: false, vat_amount: 0, line_items: items('Rice') }))).toHaveLength(0);
     const insight = buildInsights([invoice({ line_items: items('Rice') })], [], [], TODAY, { businessTin: 'x' }).find((i) => i.id === 'vat-free-items');
     expect(insight?.description).toContain('"Rice"');
+  });
+});
+
+describe('monthActivity', () => {
+  const customers = [{ id: 'c1', name: 'Ada Ltd' }, { id: 'c2', name: 'Bola Co' }] as Customer[];
+
+  it('groups spending by category and compares with the month before', () => {
+    const result = monthActivity([], [
+      expense({ amount: 1000, vat_amount: 0, category: 'utilities', expense_date: '2026-10-03' }),
+      expense({ amount: 500, vat_amount: 0, category: 'travel', expense_date: '2026-10-09' }),
+      expense({ amount: 800, vat_amount: 0, category: 'utilities', expense_date: '2026-09-20' }),
+      expense({ amount: 9999, vat_amount: 0, category: 'utilities', expense_date: '2026-10-04', status: 'rejected' }),
+    ], customers, '2026-10');
+    expect(result.spent).toBe(1500);
+    expect(result.spentPrevious).toBe(800);
+    expect(result.categories.map((c) => [c.category, c.total, c.previous])).toEqual([['utilities', 1000, 800], ['travel', 500, 0]]);
+  });
+
+  it('totals invoices issued in the month by customer, ignoring drafts', () => {
+    const result = monthActivity([
+      invoice({ subtotal: 2000, vat_amount: 150, customer_id: 'c2', amount_paid: 2150, status: 'paid' }),
+      invoice({ subtotal: 1000, vat_amount: 75, customer_id: 'c1' }),
+      invoice({ subtotal: 5000, status: 'draft' }),
+      invoice({ subtotal: 1000, vat_amount: 0, invoice_date: '2026-09-15' }),
+    ], [], customers, '2026-10');
+    expect(result.invoiced).toBe(3225);
+    expect(result.invoicedPrevious).toBe(1000);
+    expect(result.paidOnInvoiced).toBe(2150);
+    expect(result.customers).toEqual([{ name: 'Bola Co', total: 2150 }, { name: 'Ada Ltd', total: 1075 }]);
+  });
+
+  it('handles January and missing comparisons', () => {
+    expect(previousPeriodKey('2026-01')).toBe('2025-12');
+    expect(percentChange(150, 100)).toBe(50);
+    expect(percentChange(150, 0)).toBeNull();
   });
 });
