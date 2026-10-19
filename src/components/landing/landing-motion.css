@@ -1,0 +1,180 @@
+/* Landing page motion. Everything here is opt-in via prefers-reduced-motion: people who ask
+   for less motion get the finished page straight away. */
+
+.parallax {
+  translate: calc(var(--px, 0) * var(--depth, 0px)) calc(var(--py, 0) * var(--depth, 0px));
+  transition: translate 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.highlight {
+  background-image: linear-gradient(theme('colors.brand.lime'), theme('colors.brand.lime'));
+  background-repeat: no-repeat;
+  background-position: 0 88%;
+  background-size: 100% 0.32em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Scroll reveals */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-delay: var(--delay, 0ms);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Hero headline: each word rises out of its own line box */
+  .word-mask {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    padding-bottom: 0.08em;
+    margin-bottom: -0.08em;
+  }
+  .word {
+    display: inline-block;
+    animation: word-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: var(--delay, 0ms);
+  }
+  @keyframes word-rise {
+    from { transform: translateY(105%); }
+    to { transform: none; }
+  }
+
+  /* On-load entrance for hero copy and cards */
+  .enter {
+    animation: enter 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: var(--delay, 0ms);
+  }
+  @keyframes enter {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+  .pop {
+    animation: pop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+    animation-delay: var(--delay, 0ms);
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.4); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* Hero chart bars grow from the baseline */
+  .bar {
+    transform-origin: bottom;
+    animation: bar-grow 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: var(--delay, 0ms);
+  }
+  @keyframes bar-grow {
+    from { transform: scaleY(0); }
+    to { transform: none; }
+  }
+
+  /* The thin ring behind the hero cards draws itself */
+  .ring-draw {
+    stroke-dasharray: 1;
+    animation: ring-draw 1.8s cubic-bezier(0.6, 0, 0.2, 1) 0.2s both;
+  }
+  @keyframes ring-draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* A slow drift for floating chips */
+  .float {
+    animation: float 6s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0s);
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* Soft ripple on the play button */
+  .ripple::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 2px solid theme('colors.brand.forest');
+    animation: ripple 2.8s cubic-bezier(0.2, 0.7, 0.2, 1) 1.6s infinite;
+    pointer-events: none;
+  }
+  @keyframes ripple {
+    from { opacity: 0.45; transform: scale(1); }
+    70%, to { opacity: 0; transform: scale(1.6); }
+  }
+
+  /* Lime marker sweeps under key phrases when they come into view */
+  .highlight {
+    background-size: 0% 0.32em;
+    transition: background-size 1.1s cubic-bezier(0.6, 0, 0.2, 1);
+    transition-delay: var(--delay, 300ms);
+  }
+  .is-visible .highlight,
+  .highlight.is-visible {
+    background-size: 100% 0.32em;
+  }
+
+  /* Tax facts light up one after another */
+  .fact {
+    animation: fact-glow 10s ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  @keyframes fact-glow {
+    0%, 14%, 100% { color: rgb(20 20 20 / 0.45); }
+    5%, 9% { color: theme('colors.brand.green'); }
+  }
+
+  /* Steps: the connecting line draws down as the section appears */
+  .step-line {
+    transform-origin: top;
+    transform: scaleY(0);
+    transition: transform 1.4s cubic-bezier(0.6, 0, 0.2, 1) 0.3s;
+  }
+  .is-visible .step-line {
+    transform: none;
+  }
+
+  /* Big watermark eases up into place */
+  .watermark {
+    transform: translateY(18%);
+    opacity: 0;
+    transition: transform 1.6s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 1.6s ease;
+  }
+  .is-visible .watermark {
+    transform: none;
+    opacity: 1;
+  }
+
+  /* Pricing ticks pop in turn */
+  .is-visible .tick {
+    animation: pop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+    animation-delay: var(--delay, 0ms);
+  }
+  .reveal:not(.is-visible) .tick {
+    opacity: 0;
+  }
+
+  /* Feature screenshots lift on hover */
+  .feature-card img {
+    transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.5s ease;
+  }
+  .feature-card:hover img {
+    transform: translate(-50%, -8px) rotate(-1deg) scale(1.02);
+  }
+
+  /* Arrow nudge on call-to-action hover */
+  .cta-arrow {
+    transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  a:hover > .cta-arrow,
+  a:focus-visible > .cta-arrow {
+    transform: translate(3px, -3px);
+  }
+}
