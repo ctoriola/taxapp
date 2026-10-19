@@ -13,6 +13,9 @@ import {
   removeLetterhead,
   saveLetterhead,
 } from '../services/brandingService';
+import { LETTERHEAD_RECOMMENDED, letterheadSizeTip } from '../lib/letterhead';
+
+const RECOMMENDED = `${LETTERHEAD_RECOMMENDED.width}\u00a0×\u00a0${LETTERHEAD_RECOMMENDED.height}\u00a0px`;
 
 // Compares what the user can change (ignores the server's updated_at)
 function sameLetterhead(a: Letterhead | null, b: Letterhead | null): boolean {
@@ -28,6 +31,7 @@ export default function LetterheadSettings() {
   const [draft, setDraft] = useState<Letterhead | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [sizeTip, setSizeTip] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
 
   // Follow the saved letterhead as it loads or changes elsewhere, but never throw away unsaved
@@ -52,7 +56,8 @@ export default function LetterheadSettings() {
     setNotice('');
     setIsBusy(true);
     try {
-      const image = await prepareLetterheadImage(file);
+      const { image, width, height } = await prepareLetterheadImage(file);
+      setSizeTip(letterheadSizeTip(width, height));
       setDraft({ ...DEFAULT_LETTERHEAD, ...(draft || {}), image });
     } catch (err) {
       setError(err instanceof Error ? err.message : "That image couldn't be used.");
@@ -76,6 +81,7 @@ export default function LetterheadSettings() {
   };
 
   const remove = async () => {
+    setSizeTip(null);
     if (!saved) {
       setDraft(null);
       return;
@@ -109,11 +115,15 @@ export default function LetterheadSettings() {
         <label className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-line bg-brand-canvas/50 px-4 py-10 text-center cursor-pointer hover:border-brand-forest/40 transition-colors">
           <Upload className="w-6 h-6 text-brand-ink" />
           <span className="text-sm font-medium text-brand-ink">{isBusy ? 'Preparing image…' : 'Upload a letterhead'}</span>
-          <span className="text-xs text-brand-muted">PNG or JPG, up to 5 MB. A wide banner works best.</span>
+          <span className="text-xs text-brand-muted">PNG or JPG, up to 5 MB</span>
+          <span className="mt-1 rounded-full bg-brand-lime/50 px-3 py-1 text-xs font-medium text-brand-forest whitespace-nowrap">Recommended: {RECOMMENDED}</span>
+          <span className="text-xs text-brand-muted">A wide banner, about 8 times wider than it is tall</span>
           <input type="file" accept="image/png,image/jpeg" onChange={choose} disabled={isBusy} className="sr-only" aria-label="Upload letterhead image" />
         </label>
       ) : (
         <div className="space-y-5">
+          {sizeTip && <p role="status" className="rounded-2xl border border-brand-orange/30 bg-brand-orange/5 px-4 py-3 text-sm text-brand-ink">{sizeTip}</p>}
+
           {/* Live preview on a sample invoice */}
           <div className="rounded-2xl bg-brand-canvas p-3 sm:p-4" aria-label="Letterhead preview">
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -190,11 +200,12 @@ export default function LetterheadSettings() {
               Remove
             </button>
             {dirty && saved && (
-              <button type="button" onClick={() => setDraft(saved)} className="text-sm font-medium text-brand-forest hover:underline px-2">
+              <button type="button" onClick={() => { setDraft(saved); setSizeTip(null); }} className="text-sm font-medium text-brand-forest hover:underline px-2">
                 Undo changes
               </button>
             )}
           </div>
+          <p className="text-xs text-brand-muted">Recommended size: {RECOMMENDED}, PNG or JPG. Larger images are scaled down automatically.</p>
         </div>
       )}
     </section>

@@ -61,23 +61,25 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-// Shrinks a PNG/JPG to at most 1600px wide and ~450 KB, keeping PNG transparency when it fits
-export async function prepareLetterheadImage(file: File): Promise<string> {
+// Shrinks a PNG/JPG to at most 1600px wide and ~450 KB, keeping PNG transparency when it fits.
+// Also returns the original size, so the settings panel can warn about small or tall images.
+export async function prepareLetterheadImage(file: File): Promise<{ image: string; width: number; height: number }> {
   if (!['image/png', 'image/jpeg'].includes(file.type)) throw new Error('Use a PNG or JPG image.');
   if (file.size > MAX_SOURCE_BYTES) throw new Error('Image must be smaller than 5 MB.');
   const source = await readAsDataUrl(file);
   const img = await loadImage(source);
+  const size = { width: img.naturalWidth, height: img.naturalHeight };
   const scale = Math.min(1, MAX_WIDTH / img.naturalWidth);
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(img.naturalWidth * scale);
   canvas.height = Math.round(img.naturalHeight * scale);
   const ctx = canvas.getContext('2d');
-  if (!ctx) return source;
+  if (!ctx) return { image: source, ...size };
 
   if (file.type === 'image/png') {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     const png = canvas.toDataURL('image/png');
-    if (png.length * 0.75 <= MAX_STORED_BYTES) return png;
+    if (png.length * 0.75 <= MAX_STORED_BYTES) return { image: png, ...size };
   }
   // JPEG on white (letterheads print on white paper), stepping quality down until it fits
   ctx.fillStyle = '#ffffff';
@@ -85,7 +87,7 @@ export async function prepareLetterheadImage(file: File): Promise<string> {
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   for (const quality of [0.9, 0.8, 0.7, 0.6, 0.5]) {
     const jpeg = canvas.toDataURL('image/jpeg', quality);
-    if (jpeg.length * 0.75 <= MAX_STORED_BYTES) return jpeg;
+    if (jpeg.length * 0.75 <= MAX_STORED_BYTES) return { image: jpeg, ...size };
   }
   throw new Error('That image is too detailed to store. Try a simpler or smaller letterhead.');
 }
