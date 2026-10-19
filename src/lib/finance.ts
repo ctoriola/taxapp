@@ -437,3 +437,83 @@ export function buildInsights(
 
   return insights.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 }
+
+export const EXPENSE_CATEGORY_LABELS: Record<Expense['category'], string> = {
+  office_supplies: 'Office supplies',
+  utilities: 'Utilities',
+  travel: 'Travel',
+  meals: 'Meals',
+  equipment: 'Equipment',
+  services: 'Services',
+  other: 'Other',
+};
+
+export function previousPeriodKey(key: string): string {
+  const [y, m] = key.split('-').map(Number);
+  return periodKey(new Date(y, m - 2, 1));
+}
+
+// Percentage change from previous to current; null when there's nothing to compare against
+export function percentChange(current: number, previous: number): number | null {
+  if (previous <= 0) return null;
+  return ((current - previous) / previous) * 100;
+}
+
+export interface MonthActivity {
+  key: string;
+  // Spending: every recorded expense in the month except rejected ones, including VAT
+  spent: number;
+  spentPrevious: number;
+  categories: { category: Expense['category']; label: string; total: number; previous: number }[]; // largest first
+  // Earning: invoices issued in the month (by invoice date), including VAT
+  invoiced: number;
+  invoicedPrevious: number;
+  paidOnInvoiced: number; // how much of this month's invoices has been paid
+  customers: { name: string; total: number }[]; // largest first
+}
+
+export function monthActivity(invoices: Invoice[], expenses: Expense[], customers: Customer[], key: string): MonthActivity {
+  const previousKey = previousPeriodKey(key);
+  const inMonth = (date: string | undefined, k: string) => !!date && periodKey(parseDay(date)) === k;
+
+  const spending = expenses.filter((e) => e.status !== 'rejected');
+  const categoryTotals = new Map<Expense['category'], { total: number; previous: number }>();
+  let spent = 0;
+  let spentPrevious = 0;
+  for (const e of spending) {
+    const amount = e.total_amount || 0;
+    const current = inMonth(e.expense_date, key);
+    const previous = inMonth(e.expense_date, previousKey);
+    if (!current && !previous) continue;
+    const entry = categoryTotals.get(e.category) || { total: 0, previous: 0 };
+    if (current) {
+      entry.total += amount;
+      spent += amount;
+    } else {
+      entry.previous += amount;
+      spentPrevious += amount;
+    }
+    categoryTotals.set(e.category, entry);
+  }
+
+  const issued = invoices.filter(isIssued);
+  const thisMonth = issued.filter((i) => inMonth(i.invoice_date, key));
+  const byCustomer = new Map<string, number>();
+  for (const i of thisMonth) byCustomer.set(i.customer_id, (byCustomer.get(i.customer_id) || 0) + (i.total_amount || 0));
+
+  return {
+    key,
+    spent,
+    spentPrevious,
+    categories: Array.from(categoryTotals.entries())
+      .filter(([, v]) => v.total > 0)
+      .map(([category, v]) => ({ category, label: EXPENSE_CATEGORY_LABELS[category] || category, ...v }))
+      .sort((a, b) => b.total - a.total),
+    invoiced: thisMonth.reduce((t, i) => t + (i.total_amount || 0), 0),
+    invoicedPrevious: issued.filter((i) => inMonth(i.invoice_date, previousKey)).reduce((t, i) => t + (i.total_amount || 0), 0),
+    paidOnInvoiced: thisMonth.reduce((t, i) => t + (i.amount_paid || 0), 0),
+    customers: Array.from(byCustomer.entries())
+      .map(([id, total]) => ({ name: customers.find((c) => c.id === id)?.name || 'Customer', total }))
+      .sort((a, b) => b.total - a.total),
+  };
+}

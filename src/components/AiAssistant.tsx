@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Send, RefreshCw } from 'lucide-react';
 import type { AiFacts } from '../lib/aiFacts';
 import { askAi, getAiSummary, AiSummary } from '../services/aiService';
+import { withNaira } from './dashboard/ui';
 
 const SUGGESTED_QUESTIONS = [
   'How much VAT do I owe, and by when?',
@@ -46,17 +47,17 @@ export default function AiAssistant({ facts }: { facts: AiFacts }) {
   };
 
   return (
-    <div className="mt-6 pt-6 border-t border-stone-200" aria-label="AI assistant">
+    <div className="rounded-3xl bg-brand-lime/25 p-5" aria-label="AI assistant">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h4 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-          <Sparkles className="w-4 h-4 text-violet-600" />
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-ink">
+          <Sparkles className="w-4 h-4 text-brand-forest" />
           AI assistant
-        </h4>
+        </h3>
         <button
           type="button"
           onClick={explain}
           disabled={isSummarising}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-600 text-white text-xs font-semibold hover:bg-violet-700 disabled:opacity-60"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-brand-forest text-brand-lime text-xs font-semibold hover:bg-brand-forest-hover disabled:opacity-60"
         >
           {summary ? <RefreshCw className={`w-3.5 h-3.5 ${isSummarising ? 'animate-spin' : ''}`} /> : <Sparkles className="w-3.5 h-3.5" />}
           {isSummarising ? 'Thinking…' : summary ? 'Refresh explanation' : 'Explain my tax position'}
@@ -64,14 +65,14 @@ export default function AiAssistant({ facts }: { facts: AiFacts }) {
       </div>
 
       {summary && (
-        <div className="p-4 rounded-2xl bg-violet-50 border border-violet-100 mb-4" aria-live="polite">
-          <p className="text-sm font-semibold text-violet-950">{summary.headline}</p>
-          <p className="text-xs text-violet-900 mt-2 leading-relaxed whitespace-pre-line">{summary.summary}</p>
+        <div className="p-4 rounded-2xl bg-white mb-4" aria-live="polite">
+          <p className="text-sm font-semibold text-brand-ink">{withNaira(summary.headline)}</p>
+          <p className="text-xs text-brand-ink/80 mt-2 leading-relaxed whitespace-pre-line">{withNaira(summary.summary)}</p>
           {summary.priorities.length > 0 && (
             <ol className="mt-3 space-y-2 list-decimal list-inside">
               {summary.priorities.map((p, i) => (
-                <li key={i} className="text-xs text-violet-900">
-                  <span className="font-semibold">{p.title}</span>: {p.detail}
+                <li key={i} className="text-xs text-brand-ink/80">
+                  <span className="font-semibold">{withNaira(p.title)}</span>: {withNaira(p.detail)}
                 </li>
               ))}
             </ol>
@@ -93,13 +94,13 @@ export default function AiAssistant({ facts }: { facts: AiFacts }) {
           maxLength={500}
           placeholder="Ask about your VAT, invoices or expenses…"
           aria-label="Ask the AI assistant a question"
-          className="input-field py-2 text-sm flex-1"
+          className="flex-1 min-w-0 h-11 px-4 rounded-full bg-white border border-transparent text-sm focus:outline-none focus:ring-2 focus:ring-brand-forest"
         />
         <button
           type="submit"
           disabled={isAsking || !question.trim()}
           aria-label="Ask"
-          className="px-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40"
+          className="w-11 h-11 flex-shrink-0 rounded-full bg-brand-forest text-brand-lime flex items-center justify-center hover:bg-brand-forest-hover disabled:opacity-40"
         >
           <Send className="w-4 h-4" />
         </button>
@@ -112,7 +113,7 @@ export default function AiAssistant({ facts }: { facts: AiFacts }) {
               key={q}
               type="button"
               onClick={() => ask(q)}
-              className="px-3 py-1.5 rounded-full bg-stone-100 text-xs text-slate-700 hover:bg-stone-200"
+              className="px-3 py-1.5 rounded-full bg-white text-xs text-brand-ink hover:bg-brand-canvas text-left"
             >
               {q}
             </button>
@@ -120,19 +121,19 @@ export default function AiAssistant({ facts }: { facts: AiFacts }) {
         </div>
       )}
 
-      {isAsking && <p className="mt-3 text-xs text-slate-500">Thinking…</p>}
+      {isAsking && <p className="mt-3 text-xs text-brand-ink/60">Thinking…</p>}
 
       {answer && !isAsking && (
-        <div className="mt-3 p-4 rounded-2xl bg-stone-50 border border-stone-200" aria-live="polite">
-          <p className="text-xs font-semibold text-slate-500">{answer.question}</p>
-          <p className="text-sm text-slate-800 mt-1 leading-relaxed whitespace-pre-line">{answer.text}</p>
+        <div className="mt-3 p-4 rounded-2xl bg-white" aria-live="polite">
+          <p className="text-xs font-semibold text-brand-muted">{answer.question}</p>
+          <p className="text-sm text-brand-ink mt-1 leading-relaxed whitespace-pre-line">{withNaira(answer.text)}</p>
         </div>
       )}
 
-      {error && <p role="alert" className="mt-3 text-xs text-red-600">{error}</p>}
+      {error && <p role="alert" className="mt-3 text-xs text-brand-down">{error}</p>}
 
-      <p className="mt-4 text-xs text-slate-500">
-        AI-generated by Groq from the figures above. Your summarised figures and customer names are sent to Groq to produce this.
+      <p className="mt-4 text-xs text-brand-ink/60">
+        AI-generated by Groq from your figures. Your summarised figures and customer names are sent to Groq to produce this.
         It can make mistakes and isn't tax advice; check with a tax professional before acting.
       </p>
     </div>

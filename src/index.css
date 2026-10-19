@@ -62,3 +62,33 @@
     @apply text-slate-700 hover:bg-stone-100 border border-transparent hover:border-stone-200;
   }
 }
+
+/* Urbanist has no ₦ glyph, so the sign is drawn from its "N" with two strokes to match the digits.
+   The drawing is generated content; the real ₦ stays in the text at zero size, so copying,
+   screen readers and innerText all get "₦". */
+@layer components {
+  .naira {
+    position: relative;
+    display: inline-block;
+  }
+
+  .naira::before {
+    content: 'N';
+  }
+
+  .naira::after {
+    content: '';
+    position: absolute;
+    left: -0.08em;
+    right: -0.08em;
+    top: 0.36em;
+    height: 0.26em;
+    background:
+      linear-gradient(currentColor, currentColor) top / 100% max(0.075em, 1px) no-repeat,
+      linear-gradient(currentColor, currentColor) bottom / 100% max(0.075em, 1px) no-repeat;
+  }
+
+  .naira-text {
+    font-size: 0;
+  }
+}
