@@ -1,10 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useCustomers, useInvoices, useExpenses, useVatReturns } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import DataErrorBanner from '../components/DataErrorBanner';
 import SmartInsights from '../components/SmartInsights';
-import DashboardHeader from '../components/dashboard/DashboardHeader';
 import BalanceCard from '../components/dashboard/BalanceCard';
 import VatReturnCard from '../components/dashboard/VatReturnCard';
 import SpendingCard from '../components/dashboard/SpendingCard';
@@ -40,8 +38,7 @@ export default function DashboardPage() {
   const { invoices, error: invoicesError } = useInvoices();
   const { expenses, error: expensesError } = useExpenses();
   const { vatReturns } = useVatReturns();
-  const { user, profile, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { profile } = useAuth();
 
   const [hidden, setHidden] = useState(readHidden);
   const toggleHidden = () => {
@@ -55,15 +52,6 @@ export default function DashboardPage() {
     });
   };
   const money = useMemo(() => makeMoney(hidden), [hidden]);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
 
   const today = new Date();
   const summary = useMemo(() => summarize(invoices, expenses, new Date()), [invoices, expenses]);
@@ -122,14 +110,9 @@ export default function DashboardPage() {
     .sort((a, b) => b.at - a.at)
     .slice(0, 5);
 
-  const firstName = (profile?.full_name || '').trim().split(/\s+/)[0] || profile?.business_name || user?.email?.split('@')[0] || 'there';
-
   return (
-    <div className="min-h-screen bg-brand-canvas">
-      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6">
-        <DashboardHeader name={firstName} logoUrl={profile?.logo_url} insights={insights} onLogout={handleLogout} />
-
-        <DataErrorBanner errors={[invoicesError, expensesError]} />
+    <>
+      <DataErrorBanner errors={[invoicesError, expensesError]} />
 
         <main className="space-y-4 sm:space-y-5">
           <h1 className="sr-only">Dashboard</h1>
@@ -152,7 +135,6 @@ export default function DashboardPage() {
 
           <SmartInsights insights={insights} aiFacts={aiFacts} />
         </main>
-      </div>
-    </div>
+    </>
   );
 }

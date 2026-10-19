@@ -21,7 +21,7 @@ interface Props {
   onLogout: () => void;
 }
 
-export default function DashboardHeader({ name, logoUrl, insights, onLogout }: Props) {
+export default function AppHeader({ name, logoUrl, insights, onLogout }: Props) {
   const { pathname } = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -56,7 +56,8 @@ export default function DashboardHeader({ name, logoUrl, insights, onLogout }: P
       <nav aria-label="Main" className="order-last lg:order-none w-full lg:w-auto overflow-x-auto">
         <ul className="flex items-center gap-1 min-w-max">
           {TABS.map((tab) => {
-            const active = pathname === tab.to;
+            // Detail and create pages count as their section (e.g. /invoices/123 → Invoices)
+            const active = tab.to === '/dashboard' ? pathname === '/dashboard' : pathname === tab.to || pathname.startsWith(`${tab.to}/`);
             return (
               <li key={tab.to}>
                 <Link
