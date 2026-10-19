@@ -2,22 +2,50 @@ rules_version = '2';
 
 // Each user's data lives under users/{uid}: the profile is that document, and customers,
 // invoices, expenses, vatReturns (filed returns), branding (the invoice letterhead),
-// recurringInvoices (templates) and bankTransactions (imported statement lines) are
-// subcollections of it. Only the signed-in owner can read or write anything there; everything
-// else is denied.
+// recurringInvoices (templates), bankTransactions (imported statement lines) and accountants
+// (who the owner has given view-only access) are subcollections of it.
+//
+// Only the owner can write. An accountant the owner has invited can READ the owner's records,
+// but only from an account whose email address is verified, so nobody can gain access by
+// registering someone else's email. Everything else is denied.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function verifiedEmail() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true;
+    }
+
+    // The owner records each invited accountant at accountantClients/{email}/clients/{ownerUid}
+    function isAccountantFor(uid) {
+      return verifiedEmail()
+        && exists(/databases/$(database)/documents/accountantClients/$(request.auth.token.email.lower())/clients/$(uid));
+    }
+
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid) || isAccountantFor(uid);
+      allow write: if isOwner(uid);
 
       match /{collection}/{docId} {
-        allow read, write: if isOwner(uid)
-          && collection in ['customers', 'invoices', 'expenses', 'vatReturns', 'branding', 'recurringInvoices', 'bankTransactions'];
+        allow read: if (isOwner(uid) || isAccountantFor(uid))
+          && collection in ['customers', 'invoices', 'expenses', 'vatReturns', 'branding', 'recurringInvoices', 'bankTransactions', 'accountants'];
+        allow write: if isOwner(uid)
+          && collection in ['customers', 'invoices', 'expenses', 'vatReturns', 'branding', 'recurringInvoices', 'bankTransactions', 'accountants'];
       }
+    }
+
+    // An accountant's list of the businesses that invited them. The owner creates and removes
+    // their own entry; the accountant can read their list and remove themselves.
+    match /accountantClients/{email}/clients/{ownerUid} {
+      allow read: if isOwner(ownerUid) || (verifiedEmail() && request.auth.token.email.lower() == email);
+      allow create, update: if isOwner(ownerUid)
+        && request.resource.data.owner_uid == ownerUid
+        && email == email.lower();
+      allow delete: if isOwner(ownerUid) || (verifiedEmail() && request.auth.token.email.lower() == email);
     }
   }
 }

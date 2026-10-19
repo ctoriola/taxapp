@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link, Navigate } from 'react-router-dom';
+import { useNavigate, Link, Navigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
@@ -13,6 +13,9 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const { signIn, isLoading, user, profile, isCompletingGoogleSignIn } = useAuth();
   const navigate = useNavigate();
+  // Accountants sent here from /clients go back there after signing in
+  const from = (useLocation().state as { from?: string } | null)?.from;
+  const returnTo = from && from.startsWith('/clients') ? from : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +28,7 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
-      navigate('/dashboard');
+      navigate(returnTo || '/dashboard');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Authentication failed';
       setError(message);
@@ -34,7 +37,7 @@ export default function LoginPage() {
 
   // Already signed in, e.g. returning from a Google redirect sign-in
   if (user && !isLoading) {
-    return <Navigate to={profile ? '/dashboard' : '/complete-profile'} replace />;
+    return <Navigate to={returnTo || (profile ? '/dashboard' : '/complete-profile')} replace />;
   }
 
   if (isCompletingGoogleSignIn) {

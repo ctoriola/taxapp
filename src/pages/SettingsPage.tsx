@@ -6,6 +6,7 @@ import { updateUserProfile, fetchUserProfile, UserProfile, uploadCompanyLogo } f
 import PageHeader from '../components/PageHeader';
 import { PanelTitle } from '../components/dashboard/ui';
 import LetterheadSettings from '../components/LetterheadSettings';
+import AccountantAccessSettings from '../components/AccountantAccessSettings';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -350,6 +351,8 @@ export default function SettingsPage() {
       </form>
 
       <LetterheadSettings />
+
+      <AccountantAccessSettings />
 
       <div className="rounded-[28px] bg-brand-lime/30 p-5 sm:p-6">
         <h3 className="font-semibold text-brand-ink mb-1">Profile Information</h3>
