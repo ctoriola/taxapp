@@ -7,10 +7,8 @@ import {
   Plus,
   Check,
   Sparkle,
-  Sparkles,
   CalendarClock,
   FileText,
-  Receipt,
   UserPlus,
   BarChart3,
   ShieldCheck,
@@ -109,10 +107,12 @@ function HeroVisual() {
   );
 }
 
+// Each card shows the real dashboard component it describes (public/landing, captured from a demo account)
 const FEATURES = [
-  { title: 'Real-time VAT tracking', text: 'VAT charged, VAT on expenses and what you owe, updated as you record each sale and cost.', icon: BarChart3, tone: 'from-brand-lime-deep to-[#6FB83C]' },
-  { title: 'Invoices and expenses', text: 'Professional invoices with your TIN, part payments, and expenses with approval in one place.', icon: Receipt, tone: 'from-brand-lime to-brand-lime-deep' },
-  { title: 'Smart insights and AI', text: 'Overdue invoices, unfiled returns and VAT-free items flagged, and an assistant that explains your figures.', icon: Sparkles, tone: 'from-brand-lime-soft to-brand-lime' },
+  { title: 'Spending at a glance', text: 'Every expense grouped by category, month by month, with the biggest changes called out.', image: '/landing/spending.webp', alt: 'Spending card: a ring chart of expenses by category', tone: 'from-brand-lime-soft to-brand-lime' },
+  { title: 'Real-time VAT tracking', text: 'VAT charged, VAT on expenses and what you owe, updated as you record each sale and cost.', image: '/landing/vat.webp', alt: 'Next return card showing VAT to pay and its due date', tone: 'from-brand-lime-deep to-[#6FB83C]' },
+  { title: 'Invoices and expenses', text: 'Invoices with your TIN, part payments, and expenses you approve in one tap.', image: '/landing/transactions.webp', alt: 'Transactions card with an expense awaiting approval and recent invoices', tone: 'from-brand-lime to-brand-lime-deep' },
+  { title: 'Smart insights and AI', text: 'Overdue invoices and unfiled returns flagged, and an assistant that explains your figures.', image: '/landing/insights.webp', alt: 'Smart insights flagging an unfiled VAT return and overdue invoices', tone: 'from-brand-lime-soft to-brand-lime' },
 ];
 
 export default function LandingPage() {
@@ -208,34 +208,17 @@ export default function LandingPage() {
           </h2>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Illustration card */}
-            <div className="relative overflow-hidden rounded-3xl bg-brand-lime-soft min-h-[260px] sm:min-h-[300px] p-5" aria-hidden="true">
-              <div className="absolute -right-6 top-8 w-40 h-40 rounded-full bg-brand-lime"></div>
-              <div className="relative mt-10 mx-auto w-[85%] bg-white rounded-2xl shadow-lg p-4 rotate-[-6deg]">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold">Invoice INV-0104</p>
-                  <span className="px-2 py-0.5 rounded-full bg-brand-lime text-[10px] font-semibold text-brand-forest">Paid</span>
-                </div>
-                <div className="mt-3 space-y-1.5">
-                  <div className="h-1.5 rounded-full bg-brand-canvas w-full"></div>
-                  <div className="h-1.5 rounded-full bg-brand-canvas w-4/5"></div>
-                  <div className="h-1.5 rounded-full bg-brand-canvas w-3/5"></div>
-                </div>
-                <div className="mt-3 flex justify-between text-[11px]">
-                  <span className="text-brand-muted">VAT 7.5%</span>
-                  <span className="font-semibold">{withNaira('₦11,250')}</span>
-                </div>
-              </div>
-              <div className="relative ml-auto mt-5 mr-2 w-max px-3 py-2 rounded-full bg-brand-forest text-brand-lime text-xs font-semibold rotate-[4deg]">
-                {withNaira('+₦161,250 received')}
-              </div>
-            </div>
-
-            {FEATURES.map(({ title, text, icon: Icon, tone }) => (
-              <div key={title} className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${tone} min-h-[220px] sm:min-h-[300px] p-5 flex flex-col justify-between`}>
-                <Icon className="absolute -right-8 top-16 w-48 h-48 text-white/25" strokeWidth={1.5} aria-hidden="true" />
-                <h3 className="relative text-base font-semibold max-w-[12rem]">{title}</h3>
-                <p className="relative text-sm text-brand-ink/80 leading-relaxed">{text}</p>
+            {FEATURES.map(({ title, text, image, alt, tone }) => (
+              <div key={title} className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${tone} h-[400px] sm:h-[420px] p-5`}>
+                <h3 className="text-base font-semibold">{title}</h3>
+                <p className="mt-2 text-sm text-brand-ink/75 leading-relaxed">{text}</p>
+                <img
+                  src={image}
+                  alt={alt}
+                  loading="lazy"
+                  width={640}
+                  className="absolute left-1/2 -translate-x-1/2 top-[44%] w-[88%] max-w-[300px] rounded-[18px] shadow-2xl shadow-brand-forest/20 ring-1 ring-black/5"
+                />
               </div>
             ))}
           </div>
