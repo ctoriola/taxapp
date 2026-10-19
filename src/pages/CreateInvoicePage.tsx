@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useCustomers } from '../context/DataContext';
-import { Plus, Save, Send, X as XIcon, AlertCircle, CheckCircle, Menu, LogOut, Settings, Bell, Home } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Save, Send, AlertCircle, CheckCircle } from 'lucide-react';
 import CustomerSelect from '../components/CustomerSelect';
 import NewCustomerModal from '../components/NewCustomerModal';
 import InvoiceLineItem, { LineItem } from '../components/InvoiceLineItem';
 import InvoiceSummary from '../components/InvoiceSummary';
 import { createInvoice, generateInvoiceNumber } from '../services/invoiceService';
-import GlobalSearch from '../components/GlobalSearch';
+import PageHeader from '../components/PageHeader';
 
 export default function CreateInvoicePage() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
-  const { customers } = useCustomers();
 
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
@@ -26,16 +22,6 @@ export default function CreateInvoicePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
 
   // Generate invoice number on mount
   useEffect(() => {
@@ -171,264 +157,154 @@ export default function CreateInvoicePage() {
   const subtotal = calculateSubtotal();
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Top Navigation */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-stone-200/50">
-        <div className="flex items-center justify-between px-6 lg:px-8 py-4">
-          {/* Left: Logo & Sidebar Toggle */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-stone-100 rounded-xl transition-all duration-200"
-            >
-              {sidebarOpen ? (
-                <XIcon className="w-6 h-6 text-slate-600" />
-              ) : (
-                <Menu className="w-6 h-6 text-slate-600" />
-              )}
-            </button>            <Link
-              to="/dashboard"
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Dashboard"
-            >
-              <Home className="w-5 h-5 text-slate-600" />
-            </Link>            <div className="hidden lg:flex items-center gap-3">
-              {profile?.logo_url && (
-                <img
-                  src={profile.logo_url}
-                  alt="Company logo"
-                  className="h-8 w-auto"
-                />
-              )}
+    <div className="space-y-5">
+      <PageHeader title="Create Invoice" back={{ to: '/invoices', label: 'All invoices' }} />
+
+      {/* Status Messages */}
+      {successMessage && (
+        <div role="status" className="bg-brand-lime/40 rounded-2xl p-4 flex gap-3 items-start">
+          <CheckCircle className="w-5 h-5 text-brand-forest flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-brand-forest font-medium">Success</p>
+            <p className="text-brand-forest text-sm">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-2xl p-4 flex gap-3 items-start">
+          <AlertCircle className="w-5 h-5 text-brand-down flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-brand-down font-medium">Error</p>
+            <p className="text-brand-down text-sm">{errorMessage}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Main Form */}
+        <div className="lg:col-span-2 space-y-5 min-w-0">
+          {/* Invoice Header Card */}
+          <section className="card p-5 sm:p-6">
+            <h2 className="text-lg font-semibold text-brand-ink mb-5">Invoice Details</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <div>
-                <h2 className="text-xl font-bold text-emerald-700">{profile?.business_name || 'Business'}</h2>
-                <p className="text-xs text-slate-600 mt-1">Logged in as: {user?.email || 'User'}</p>
+                <label htmlFor="invoice-number" className="field-label">Invoice Number</label>
+                <input
+                  id="invoice-number"
+                  type="text"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="invoice-date" className="field-label">Invoice Date</label>
+                <input
+                  id="invoice-date"
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="due-date" className="field-label">Due Date</label>
+                <input
+                  id="due-date"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="input-field"
+                />
               </div>
             </div>
-          </div>
 
-          {/* Center: Search */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <GlobalSearch />
-          </div>
-
-          {/* Right: Notifications & Profile */}
-          <div className="flex items-center gap-4">
-            <button className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200 relative">
-              <Bell className="w-5 h-5 text-slate-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-600 rounded-full"></span>
-            </button>
-
-            {profile?.logo_url ? (
-              <img
-                src={profile.logo_url}
-                alt="Company logo"
-                className="h-10 w-10 rounded-full object-cover cursor-pointer hover:shadow-lg transition-all"
+            {/* Customer Selection */}
+            <div className="mb-4">
+              <span className="field-label">Customer *</span>
+              <CustomerSelect
+                selectedCustomerId={selectedCustomer}
+                onSelect={setSelectedCustomer}
+                onAddNew={() => setIsNewCustomerModalOpen(true)}
               />
-            ) : (
-              <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-emerald-700 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:shadow-lg transition-all">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
+            </div>
 
-            <button
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Settings"
-            >
-              <Settings className="w-5 h-5 text-slate-600" />
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5 text-slate-600" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-emerald-900">Create Invoice</h1>
-        </div>
-
-        {/* Status Messages */}
-        {successMessage && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-6 flex gap-3 items-start">
-            <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            {/* Notes */}
             <div>
-              <p className="text-emerald-800 font-medium">Success</p>
-              <p className="text-emerald-700 text-sm">{successMessage}</p>
+              <label htmlFor="invoice-notes" className="field-label">Notes (Optional)</label>
+              <textarea
+                id="invoice-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any additional notes or payment instructions..."
+                rows={3}
+                className="input-field resize-none"
+              />
             </div>
-          </div>
-        )}
+          </section>
 
-        {errorMessage && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 flex gap-3 items-start">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-red-800 font-medium">Error</p>
-              <p className="text-red-700 text-sm">{errorMessage}</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Form */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Invoice Header Card */}
-            <div className="card-bento p-6">
-              <h2 className="text-lg font-bold text-emerald-900 mb-4">Invoice Details</h2>
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                {/* Invoice Number */}
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                    Invoice Number
-                  </label>
-                  <input
-                    type="text"
-                    value={invoiceNumber}
-                    onChange={(e) => setInvoiceNumber(e.target.value)}
-                    className="input-field w-full"
-                  />
-                </div>
-
-                {/* Invoice Date */}
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                    Invoice Date
-                  </label>
-                  <input
-                    type="date"
-                    value={invoiceDate}
-                    onChange={(e) => setInvoiceDate(e.target.value)}
-                    className="input-field w-full"
-                  />
-                </div>
-
-                {/* Due Date */}
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="input-field w-full"
-                  />
-                </div>
-              </div>
-
-              {/* Customer Selection */}
-              <div className="mb-4">
-                <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                  Customer *
-                </label>
-                <CustomerSelect
-                  selectedCustomerId={selectedCustomer}
-                  onSelect={setSelectedCustomer}
-                  onAddNew={() => setIsNewCustomerModalOpen(true)}
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add any additional notes or payment instructions..."
-                  rows={3}
-                  className="input-field w-full resize-none"
-                />
-              </div>
+          {/* Line Items Card */}
+          <section className="card p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <h2 className="text-lg font-semibold text-brand-ink">Line Items</h2>
+              <button type="button" onClick={handleAddLineItem} className="btn-primary">
+                <Plus className="w-4 h-4" />
+                Add Item
+              </button>
             </div>
 
-            {/* Line Items Card */}
-            <div className="card-bento p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-emerald-900">Line Items</h2>
-                <button
-                  type="button"
-                  onClick={handleAddLineItem}
-                  className="flex items-center gap-2 px-4 py-2 btn-primary rounded-2xl transition-all"
-                >
+            {lineItems.length === 0 ? (
+              <div className="text-center py-10 rounded-2xl bg-brand-canvas">
+                <p className="text-brand-muted mb-4">No line items yet</p>
+                <button type="button" onClick={handleAddLineItem} className="btn-secondary">
                   <Plus className="w-4 h-4" />
-                  Add Item
+                  Add First Item
                 </button>
               </div>
+            ) : (
+              <div className="space-y-3">
+                {lineItems.map((item, index) => (
+                  <InvoiceLineItem
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onUpdate={handleUpdateLineItem}
+                    onRemove={handleRemoveLineItem}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
 
-              {lineItems.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-stone-500 mb-4">No line items yet</p>
-                  <button
-                    type="button"
-                    onClick={handleAddLineItem}
-                    className="inline-flex items-center gap-2 px-4 py-2 btn-secondary rounded-2xl transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add First Item
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {lineItems.map((item, index) => (
-                    <InvoiceLineItem
-                      key={item.id}
-                      item={item}
-                      index={index}
-                      onUpdate={handleUpdateLineItem}
-                      onRemove={handleRemoveLineItem}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Summary and actions */}
+        <div className="lg:col-span-1 space-y-4 min-w-0">
+          <InvoiceSummary
+            subtotal={subtotal}
+            applyVat={applyVat}
+            onVatToggle={setApplyVat}
+          />
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            {/* Summary */}
-            <InvoiceSummary
-              subtotal={subtotal}
-              applyVat={applyVat}
-              onVatToggle={setApplyVat}
-            />
-
-            {/* Action Buttons */}
-            <div className="mt-6 space-y-3">
-              <button
-                onClick={handleSaveAsDraft}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 btn-secondary rounded-2xl transition-all disabled:opacity-60"
-              >
-                <Save className="w-4 h-4" />
-                Save as Draft
-              </button>
-              <button
-                onClick={handleSendInvoice}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 btn-primary rounded-2xl transition-all disabled:opacity-60"
-              >
-                <Send className="w-4 h-4" />
-                {isLoading ? 'Processing...' : 'Save Invoice'}
-              </button>
-              <button
-                onClick={() => navigate('/dashboard')}
-                disabled={isLoading}
-                className="w-full px-4 py-3 border border-stone-300 text-stone-700 rounded-2xl font-medium hover:bg-stone-50 disabled:opacity-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+          <div className="space-y-3">
+            <button onClick={handleSendInvoice} disabled={isLoading} className="btn-primary w-full">
+              <Send className="w-4 h-4" />
+              {isLoading ? 'Processing...' : 'Save Invoice'}
+            </button>
+            <button onClick={handleSaveAsDraft} disabled={isLoading} className="btn-secondary w-full">
+              <Save className="w-4 h-4" />
+              Save as Draft
+            </button>
+            <button
+              onClick={() => navigate('/dashboard')}
+              disabled={isLoading}
+              className="w-full h-11 rounded-full text-sm font-semibold text-brand-muted hover:text-brand-ink hover:bg-white transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       </div>

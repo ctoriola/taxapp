@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Save, Menu, X, LogOut, Settings, Bell, Home } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Save, Receipt } from 'lucide-react';
 import { createExpense } from '../services/expenseService';
-import { useAuth } from '../context/AuthContext';
-import GlobalSearch from '../components/GlobalSearch';
+import PageHeader from '../components/PageHeader';
+import { withNaira } from '../components/dashboard/ui';
 
 const EXPENSE_CATEGORIES = [
   { value: 'office_supplies', label: 'Office Supplies' },
@@ -17,12 +17,12 @@ const EXPENSE_CATEGORIES = [
 
 const VAT_RATE = 0.075; // 7.5%
 
+const naira = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export default function CreateExpensePage() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Form state
   const [description, setDescription] = useState('');
@@ -31,15 +31,6 @@ export default function CreateExpensePage() {
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [applyVAT, setApplyVAT] = useState(true);
   const [notes, setNotes] = useState('');
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
 
   // Calculate totals
   const numAmount = parseFloat(amount) || 0;
@@ -80,239 +71,133 @@ export default function CreateExpensePage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Top Navigation */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-stone-200/50">
-        <div className="flex items-center justify-between px-6 lg:px-8 py-4">
-          {/* Left: Logo & Sidebar Toggle */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-stone-100 rounded-xl transition-all duration-200"
-            >
-              {sidebarOpen ? (
-                <X className="w-6 h-6 text-slate-600" />
-              ) : (
-                <Menu className="w-6 h-6 text-slate-600" />
-              )}
-            </button>            <Link
-              to="/dashboard"
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Dashboard"
-            >
-              <Home className="w-5 h-5 text-slate-600" />
-            </Link>            <div className="hidden lg:flex items-center gap-3">
-              {profile?.logo_url && (
-                <img
-                  src={profile.logo_url}
-                  alt="Company logo"
-                  className="h-8 w-auto"
-                />
-              )}
-              <div>
-                <h2 className="text-xl font-bold text-emerald-700">{profile?.business_name || 'Business'}</h2>
-                <p className="text-xs text-slate-600 mt-1">Logged in as: {user?.email || 'User'}</p>
-              </div>
-            </div>
-          </div>
+    <div className="space-y-5">
+      <PageHeader title="Record Expense" description="Add a business cost; VAT is worked out for you" back={{ to: '/expenses', label: 'All expenses' }} />
 
-          {/* Center: Search */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <GlobalSearch />
-          </div>
-
-          {/* Right: Notifications & Profile */}
-          <div className="flex items-center gap-4">
-            <button className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200 relative">
-              <Bell className="w-5 h-5 text-slate-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-600 rounded-full"></span>
-            </button>
-
-            {profile?.logo_url ? (
-              <img
-                src={profile.logo_url}
-                alt="Company logo"
-                className="h-10 w-10 rounded-full object-cover cursor-pointer hover:shadow-lg transition-all"
-              />
-            ) : (
-              <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-emerald-700 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:shadow-lg transition-all">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
-
-            <Link
-              to="/settings"
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Settings"
-            >
-              <Settings className="w-5 h-5 text-slate-600" />
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5 text-slate-600" />
-            </button>
-          </div>
+      {error && (
+        <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-2xl p-4">
+          <p className="text-brand-down text-sm font-medium">{error}</p>
         </div>
-      </div>
+      )}
 
-      <main className="px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-emerald-900">Record Expense</h1>
-        </div>
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
-            <p className="text-red-700 text-sm font-medium">{error}</p>
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        {/* Expense Details Card */}
+        <section className="card p-5 sm:p-6 lg:col-span-2 min-w-0">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="w-10 h-10 rounded-full border border-brand-line text-brand-ink flex items-center justify-center flex-shrink-0">
+              <Receipt className="w-[18px] h-[18px]" />
+            </span>
+            <h2 className="text-lg font-semibold text-brand-ink">Expense Details</h2>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit}>
-          {/* Expense Details Card */}
-          <div className="card-bento p-6 mb-6">
-            <h2 className="text-lg font-semibold text-emerald-900 mb-6">Expense Details</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Description */}
-              <div className="md:col-span-2">
-                <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                  Description *
-                </label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="e.g., Office furniture, Software license..."
-                  className="input-field w-full"
-                />
-              </div>
-
-              {/* Amount */}
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                  Amount (₦) *
-                </label>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className="input-field w-full"
-                />
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                  Category
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="input-field w-full"
-                >
-                  {EXPENSE_CATEGORIES.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Expense Date */}
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                  Expense Date
-                </label>
-                <input
-                  type="date"
-                  value={expenseDate}
-                  onChange={(e) => setExpenseDate(e.target.value)}
-                  className="input-field w-full"
-                />
-              </div>
-
-              {/* Notes */}
-              <div className="md:col-span-2">
-                <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add any additional details..."
-                  rows={3}
-                  className="input-field w-full"
-                />
-              </div>
-            </div>
-
-            {/* VAT Toggle */}
-            <div className="flex items-center gap-3 pt-4 border-t border-stone-200/50">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Description */}
+            <div className="md:col-span-2">
+              <label htmlFor="expense-description" className="field-label">Description *</label>
               <input
-                type="checkbox"
-                id="applyVAT"
-                checked={applyVAT}
-                onChange={(e) => setApplyVAT(e.target.checked)}
-                className="w-4 h-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-700"
+                id="expense-description"
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g., Office furniture, Software license..."
+                className="input-field"
               />
-              <label htmlFor="applyVAT" className="text-sm font-medium text-stone-700">
-                Apply VAT (7.5%)
-              </label>
+            </div>
+
+            {/* Amount */}
+            <div>
+              <label htmlFor="expense-amount" className="field-label">Amount (₦) *</label>
+              <input
+                id="expense-amount"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+                className="input-field"
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label htmlFor="expense-category" className="field-label">Category</label>
+              <select id="expense-category" value={category} onChange={(e) => setCategory(e.target.value)} className="input-field">
+                {EXPENSE_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Expense Date */}
+            <div>
+              <label htmlFor="expense-date" className="field-label">Expense Date</label>
+              <input id="expense-date" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="input-field" />
+            </div>
+
+            {/* Notes */}
+            <div className="md:col-span-2">
+              <label htmlFor="expense-notes" className="field-label">Notes (Optional)</label>
+              <textarea
+                id="expense-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any additional details..."
+                rows={3}
+                className="input-field"
+              />
             </div>
           </div>
 
-          {/* Summary Card */}
-          <div className="card-bento p-6 mb-6 bg-gradient-to-br from-emerald-50 to-white border-emerald-200/50">
-            <h3 className="text-sm font-semibold text-emerald-900 mb-4">Expense Summary</h3>
+          {/* VAT Toggle */}
+          <label htmlFor="applyVAT" className="flex items-center gap-3 mt-6 pt-5 border-t border-brand-line text-sm font-medium text-brand-ink cursor-pointer">
+            <input
+              type="checkbox"
+              id="applyVAT"
+              checked={applyVAT}
+              onChange={(e) => setApplyVAT(e.target.checked)}
+              className="w-4 h-4 rounded border-brand-line accent-brand-forest"
+            />
+            Apply VAT (7.5%)
+          </label>
+        </section>
+
+        {/* Summary + actions */}
+        <div className="space-y-4 min-w-0">
+          <section className="rounded-[28px] bg-brand-lime p-5 sm:p-6 text-brand-ink">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-brand-ink/75 mb-4">Expense Summary</h3>
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-stone-600">Amount</span>
-                <span className="font-medium text-slate-900">
-                  ₦{numAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="text-brand-ink/75">Amount</span>
+                <span className="font-medium tabular-nums">{withNaira(naira(numAmount))}</span>
               </div>
               {applyVAT && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-stone-600">VAT (7.5%)</span>
-                  <span className="font-medium text-slate-900">
-                    ₦{vatAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-brand-ink/75">VAT (7.5%)</span>
+                  <span className="font-medium tabular-nums">{withNaira(naira(vatAmount))}</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-semibold border-t border-emerald-200/50 pt-3">
-                <span className="text-slate-900">Total</span>
-                <span className="text-emerald-700">
-                  ₦{totalAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+              <div className="flex justify-between items-baseline gap-3 border-t border-brand-ink/15 pt-3">
+                <span className="font-semibold">Total</span>
+                <span className="text-2xl font-medium tracking-tight tabular-nums truncate">{withNaira(naira(totalAmount))}</span>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Action Buttons */}
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/expenses')}
-              className="flex-1 px-4 py-2 btn-secondary rounded-2xl transition-all"
-            >
+            <button type="button" onClick={() => navigate('/expenses')} className="btn-secondary flex-1">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 btn-primary rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Save className="w-5 h-5" />
+            <button type="submit" disabled={isLoading} className="btn-primary flex-1">
+              <Save className="w-4 h-4" />
               {isLoading ? 'Saving...' : 'Save Expense'}
             </button>
           </div>
-        </form>
-      </main>
+        </div>
+      </form>
     </div>
   );
 }

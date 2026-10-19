@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Send, Edit2, Copy, CheckCircle, Printer } from 'lucide-react';
+import { Download, Send, Edit2, Copy, CheckCircle, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateInvoice } from '../services/invoiceService';
 import { useCustomers, useInvoices } from '../context/DataContext';
+import PageHeader from '../components/PageHeader';
+import StatusPill, { PillTone } from '../components/StatusPill';
+import { withNaira } from '../components/dashboard/ui';
 
 // Print styles
 const printStyles = `
@@ -91,17 +94,17 @@ export default function InvoiceDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft':
-        return { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Draft' };
+        return { tone: 'neutral' as PillTone, label: 'Draft' };
       case 'unpaid':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Unpaid' };
+        return { tone: 'info' as PillTone, label: 'Unpaid' };
       case 'partially_paid':
-        return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Partially Paid' };
+        return { tone: 'warn' as PillTone, label: 'Partially Paid' };
       case 'paid':
-        return { bg: 'bg-green-100', text: 'text-green-700', label: 'Paid' };
+        return { tone: 'good' as PillTone, label: 'Paid' };
       case 'overdue':
-        return { bg: 'bg-red-100', text: 'text-red-700', label: 'Overdue' };
+        return { tone: 'bad' as PillTone, label: 'Overdue' };
       default:
-        return { bg: 'bg-slate-100', text: 'text-slate-700', label: status };
+        return { tone: 'neutral' as PillTone, label: status };
     }
   };
 
@@ -133,14 +136,8 @@ export default function InvoiceDetailPage() {
     // Clone the element to preserve original styling
     const clonedElement = element.cloneNode(true) as HTMLElement;
 
-    // Remove edit buttons from the cloned element
-    const editButtons = clonedElement.querySelectorAll('[class*="bg-blue-100"]');
-    editButtons.forEach(button => {
-      const buttonText = button.textContent?.trim();
-      if (buttonText === 'Edit') {
-        button.remove();
-      }
-    });
+    // Remove on-screen controls (the payment Edit button) from the cloned element
+    clonedElement.querySelectorAll('[data-pdf-exclude]').forEach((el) => el.remove());
 
     // Create PDF options
     const opt = {
@@ -197,18 +194,15 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  const back = { to: '/invoices', label: 'Back to Invoices' };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
-        <button
-          onClick={() => navigate('/invoices')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Invoices
-        </button>
-        <div className="text-center py-12">
-          <p className="text-slate-600">Loading invoice...</p>
+      <div className="space-y-5">
+        <PageHeader title="Invoice" back={back} />
+        <div className="card p-10 text-center">
+          <div className="w-10 h-10 mx-auto border-4 border-brand-line border-t-brand-forest rounded-full animate-spin"></div>
+          <p className="text-brand-muted mt-4">Loading invoice...</p>
         </div>
       </div>
     );
@@ -216,74 +210,80 @@ export default function InvoiceDetailPage() {
 
   if (error || !invoice) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
-        <button
-          onClick={() => navigate('/invoices')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Invoices
-        </button>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-700">{error || 'Invoice not found'}</p>
+      <div className="space-y-5">
+        <PageHeader title="Invoice" back={back} />
+        <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-[28px] p-6 text-center">
+          <p className="text-brand-down">{error || 'Invoice not found'}</p>
         </div>
       </div>
     );
   }
 
   const statusColor = getStatusColor(invoice.status);
+  const customer = customers.find((c) => c.id === invoice.customer_id);
+  const outstanding = invoice.total_amount - (invoice.amount_paid || 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <button
-          onClick={() => navigate('/invoices')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Invoices
-        </button>
-        <div className="flex items-center gap-2">
-          {invoice.status === 'draft' && (
-            <>
-              <button
-                onClick={handleEdit}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Edit2 className="w-4 h-4" />
-                Edit
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                <Send className="w-4 h-4" />
-                Send
-              </button>
-            </>
-          )}
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
-          <button
-            onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            PDF
-          </button>
+    <div className="space-y-5">
+      <PageHeader
+        back={back}
+        title={invoice.invoice_number}
+        description={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            {getCustomerName(invoice.customer_id)} · due {formatDate(invoice.due_date)}
+          </span>
+        }
+        actions={
+          <>
+            {invoice.status === 'draft' && (
+              <>
+                <button onClick={handleEdit} className="btn-primary">
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </button>
+                <button className="btn-lime">
+                  <Send className="w-4 h-4" />
+                  Send
+                </button>
+              </>
+            )}
+            <button onClick={handlePrint} className="btn-secondary">
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
+            <button onClick={handleDownloadPDF} className="btn-secondary">
+              <Download className="w-4 h-4" />
+              PDF
+            </button>
+          </>
+        }
+      />
+
+      {/* At-a-glance tiles */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">
+        <div className="rounded-[28px] bg-brand-lime p-5 sm:p-6">
+          <p className="text-sm text-brand-ink/75">Total amount</p>
+          <p className="text-2xl sm:text-[28px] font-medium tracking-tight text-brand-ink mt-2 break-all">{withNaira(formatCurrency(invoice.total_amount))}</p>
+        </div>
+        <div className="rounded-[28px] bg-white p-5 sm:p-6">
+          <p className="text-sm text-brand-muted">Paid so far</p>
+          <p className="text-2xl sm:text-[28px] font-medium tracking-tight text-brand-ink mt-2 break-all">{withNaira(formatCurrency(invoice.amount_paid || 0))}</p>
+        </div>
+        <div className="rounded-[28px] bg-white p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-brand-muted">Outstanding</p>
+            <StatusPill tone={statusColor.tone}>{statusColor.label}</StatusPill>
+          </div>
+          <p className={`text-2xl sm:text-[28px] font-medium tracking-tight mt-2 break-all ${outstanding > 0 ? 'text-brand-ink' : 'text-brand-up'}`}>{withNaira(formatCurrency(outstanding))}</p>
         </div>
       </div>
 
-      {/* Invoice Document */}
-      <div id="invoice-document" className="bg-white rounded-lg shadow-lg border border-slate-200 max-w-4xl mx-auto">
-        {/* Document Content */}
-        <div className="p-12">
+      {/* Invoice Document (also printed and exported as PDF: plain text only, no ₦ drawing) */}
+      <div id="invoice-document" className="bg-white rounded-[28px] max-w-4xl mx-auto overflow-hidden">
+        <div className="p-6 sm:p-10">
           {/* Header Section */}
-          <div className="flex items-start justify-between mb-12 pb-8 border-b border-slate-200">
-            <div className="flex items-start gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-6 mb-10 pb-8 border-b border-brand-line">
+            <div className="flex items-start gap-4 min-w-0">
               {profile?.logo_url && (
                 <img
                   src={profile.logo_url}
@@ -291,12 +291,12 @@ export default function InvoiceDetailPage() {
                   className="h-16 w-auto"
                 />
               )}
-              <div>
-                <div className="text-3xl font-bold text-slate-900 mb-2">
+              <div className="min-w-0">
+                <div className="text-2xl sm:text-3xl font-bold text-brand-ink mb-2 break-words">
                   {profile?.business_name || 'Your Company'}
                 </div>
                 {profile && (
-                  <div className="text-sm text-slate-600 space-y-1">
+                  <div className="text-sm text-brand-muted space-y-1">
                     {profile.email && <p>{profile.email}</p>}
                     {profile.phone && <p>{profile.phone}</p>}
                     {profile.location && <p>{profile.location}</p>}
@@ -305,41 +305,39 @@ export default function InvoiceDetailPage() {
                 )}
               </div>
             </div>
-            <div className="text-right">
-              <div className={`inline-block px-4 py-2 rounded-lg font-semibold ${statusColor.bg} ${statusColor.text} mb-4`}>
-                {statusColor.label}
+            <div className="sm:text-right">
+              <div className="mb-3">
+                <StatusPill tone={statusColor.tone}>{statusColor.label}</StatusPill>
               </div>
-              <div className="text-2xl font-bold text-slate-900">{invoice.invoice_number}</div>
+              <div className="text-2xl font-bold text-brand-ink">{invoice.invoice_number}</div>
             </div>
           </div>
 
           {/* Invoice Details */}
-          <div className="grid grid-cols-2 gap-12 mb-12">
-            {/* Left Column */}
-            <div className="space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-12 mb-10">
+            <div className="space-y-6">
               <div>
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Invoice Date</p>
-                <p className="text-lg text-slate-900 font-medium">{formatDate(invoice.invoice_date)}</p>
+                <p className="text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Invoice Date</p>
+                <p className="text-lg text-brand-ink font-medium">{formatDate(invoice.invoice_date)}</p>
               </div>
-              
+
               <div>
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Due Date</p>
-                <p className="text-lg text-slate-900 font-medium">{formatDate(invoice.due_date)}</p>
+                <p className="text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Due Date</p>
+                <p className="text-lg text-brand-ink font-medium">{formatDate(invoice.due_date)}</p>
               </div>
             </div>
 
-            {/* Right Column - Invoice ID */}
             <div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Invoice ID</p>
-              <div className="bg-slate-50 border border-slate-300 rounded-lg p-4 flex items-center justify-between group hover:bg-slate-100 transition-colors">
-                <code className="text-sm font-mono text-slate-900 break-all">{invoice.invoice_number}</code>
+              <p className="text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Invoice ID</p>
+              <div className="bg-brand-canvas rounded-2xl p-4 flex items-center justify-between group">
+                <code className="text-sm font-mono text-brand-ink break-all">{invoice.invoice_number}</code>
                 <button
                   onClick={() => copyToClipboard(invoice.invoice_number)}
-                  className="ml-2 p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"
+                  className="ml-2 p-2 text-brand-muted hover:text-brand-ink hover:bg-white rounded-full transition-colors sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
                   title="Copy ID"
                 >
                   {copiedId ? (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <CheckCircle className="w-5 h-5 text-brand-up" />
                   ) : (
                     <Copy className="w-5 h-5" />
                   )}
@@ -349,34 +347,34 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Bill To Section */}
-          <div className="mb-12">
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Bill To</p>
-            <div className="text-slate-900">
+          <div className="mb-10">
+            <p className="text-xs font-semibold text-brand-muted uppercase tracking-wider mb-3">Bill To</p>
+            <div className="text-brand-ink">
               <p className="text-lg font-semibold mb-1">{getCustomerName(invoice.customer_id)}</p>
-              {customers.find((c) => c.id === invoice.customer_id)?.tax_id && (
-                <p className="text-sm text-slate-600">TIN: {customers.find((c) => c.id === invoice.customer_id)?.tax_id}</p>
+              {customer?.tax_id && (
+                <p className="text-sm text-brand-muted">TIN: {customer.tax_id}</p>
               )}
             </div>
           </div>
 
           {/* Line Items Table */}
-          <div className="mb-8 border-t border-slate-200 pt-8">
-            <table className="w-full">
+          <div className="mb-8 border-t border-brand-line pt-8 overflow-x-auto">
+            <table className="w-full min-w-[480px]">
               <thead>
-                <tr className="border-b border-slate-300">
-                  <th className="text-left py-3 px-4 font-semibold text-slate-900 bg-slate-50">Description</th>
-                  <th className="text-center py-3 px-4 font-semibold text-slate-900 bg-slate-50">Quantity</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-900 bg-slate-50">Unit Price</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-900 bg-slate-50">Line Total</th>
+                <tr className="bg-brand-canvas">
+                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-brand-muted rounded-l-xl">Description</th>
+                  <th className="text-center py-3 px-4 text-xs font-semibold uppercase tracking-wider text-brand-muted">Quantity</th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold uppercase tracking-wider text-brand-muted">Unit Price</th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold uppercase tracking-wider text-brand-muted rounded-r-xl">Line Total</th>
                 </tr>
               </thead>
               <tbody>
                 {invoice.line_items.map((item, index) => (
-                  <tr key={index} className="border-b border-slate-200 hover:bg-slate-50">
-                    <td className="py-4 px-4 text-slate-900">{item.description}</td>
-                    <td className="py-4 px-4 text-center text-slate-900">{item.quantity}</td>
-                    <td className="py-4 px-4 text-right text-slate-900">{formatCurrency(item.unit_price)}</td>
-                    <td className="py-4 px-4 text-right font-semibold text-slate-900">
+                  <tr key={index} className="border-b border-brand-line">
+                    <td className="py-4 px-4 text-brand-ink">{item.description}</td>
+                    <td className="py-4 px-4 text-center text-brand-ink">{item.quantity}</td>
+                    <td className="py-4 px-4 text-right text-brand-ink whitespace-nowrap">{formatCurrency(item.unit_price)}</td>
+                    <td className="py-4 px-4 text-right font-semibold text-brand-ink whitespace-nowrap">
                       {formatCurrency(item.line_total)}
                     </td>
                   </tr>
@@ -386,48 +384,46 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Totals Section */}
-          <div className="flex justify-end mb-12">
-            <div className="w-full max-w-xs">
-              {/* Subtotal */}
-              <div className="flex justify-between items-center py-3 px-4 border-t border-slate-200">
-                <span className="text-slate-600 font-medium">Subtotal</span>
-                <span className="text-slate-900 font-medium">{formatCurrency(invoice.subtotal)}</span>
+          <div className="flex justify-end mb-10">
+            <div className="w-full sm:max-w-sm">
+              <div className="flex justify-between items-center py-3 px-4">
+                <span className="text-brand-muted font-medium">Subtotal</span>
+                <span className="text-brand-ink font-medium">{formatCurrency(invoice.subtotal)}</span>
               </div>
 
-              {/* VAT */}
               {invoice.apply_vat && (
-                <div className="flex justify-between items-center py-3 px-4 border-t border-slate-200">
-                  <span className="text-slate-600 font-medium">VAT (7.5%)</span>
-                  <span className="text-slate-900 font-medium">{formatCurrency(invoice.vat_amount)}</span>
+                <div className="flex justify-between items-center py-3 px-4 border-t border-brand-line">
+                  <span className="text-brand-muted font-medium">VAT (7.5%)</span>
+                  <span className="text-brand-ink font-medium">{formatCurrency(invoice.vat_amount)}</span>
                 </div>
               )}
 
-              {/* Total */}
-              <div className="flex justify-between items-center py-4 px-4 border-t-2 border-slate-300 bg-slate-50">
-                <span className="text-lg font-bold text-slate-900">Total Amount</span>
-                <span className="text-2xl font-bold text-slate-900">
+              <div className="flex justify-between items-center gap-3 py-4 px-4 rounded-2xl bg-brand-lime mt-2">
+                <span className="text-base sm:text-lg font-bold text-brand-ink">Total Amount</span>
+                <span className="text-xl sm:text-2xl font-bold text-brand-ink">
                   {formatCurrency(invoice.total_amount)}
                 </span>
               </div>
 
               {/* Payment Status */}
-              <div className="py-4 px-4 border-t border-slate-200 bg-slate-50">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold text-slate-600">Amount Paid</span>
+              <div className="py-4 px-4 mt-2 rounded-2xl bg-brand-canvas">
+                <div className="flex flex-wrap justify-between items-center gap-2">
+                  <span className="text-sm font-semibold text-brand-muted">Amount Paid</span>
                   {!isEditingPayment ? (
                     <div className="flex items-center gap-3">
-                      <span className="text-lg font-bold text-slate-900">
+                      <span className="text-lg font-bold text-brand-ink">
                         {formatCurrency(amountPaid)}
                       </span>
                       <button
+                        data-pdf-exclude
                         onClick={() => setIsEditingPayment(true)}
-                        className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 transition-colors print:hidden"
+                        className="h-8 px-3 rounded-full bg-white border border-brand-line text-brand-forest text-sm font-semibold hover:bg-brand-lime/40 transition-colors print:hidden"
                       >
                         Edit
                       </button>
                     </div>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <input
                         type="number"
                         min="0"
@@ -435,12 +431,12 @@ export default function InvoiceDetailPage() {
                         step="0.01"
                         value={amountPaid}
                         onChange={(e) => setAmountPaid(parseFloat(e.target.value) || 0)}
-                        className="w-32 px-3 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-32 h-9 px-3 rounded-full border border-brand-line bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-forest"
                       />
                       <button
                         onClick={handleUpdatePayment}
                         disabled={isUpdatingPayment}
-                        className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+                        className="h-9 px-4 rounded-full bg-brand-forest text-brand-lime text-sm font-semibold hover:bg-brand-forest-hover transition-colors disabled:opacity-50"
                       >
                         Save
                       </button>
@@ -450,7 +446,7 @@ export default function InvoiceDetailPage() {
                           setAmountPaid(invoice.amount_paid || 0);
                           setPaymentError('');
                         }}
-                        className="px-3 py-1 bg-slate-300 text-slate-700 rounded text-sm hover:bg-slate-400 transition-colors"
+                        className="h-9 px-4 rounded-full bg-white border border-brand-line text-brand-ink text-sm font-semibold hover:bg-brand-canvas transition-colors"
                       >
                         Cancel
                       </button>
@@ -458,10 +454,10 @@ export default function InvoiceDetailPage() {
                   )}
                 </div>
                 {paymentError && (
-                  <p className="text-xs text-red-600 mt-2 print:hidden">{paymentError}</p>
+                  <p role="alert" className="text-xs text-brand-down mt-2 print:hidden">{paymentError}</p>
                 )}
                 {invoice.status === 'partially_paid' && (
-                  <p className="text-xs text-slate-600 mt-2">
+                  <p className="text-xs text-brand-muted mt-2">
                     Outstanding: {formatCurrency(invoice.total_amount - (invoice.amount_paid || 0))}
                   </p>
                 )}
@@ -471,14 +467,14 @@ export default function InvoiceDetailPage() {
 
           {/* Notes Section */}
           {invoice.notes && (
-            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-              <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">Notes</p>
-              <p className="text-slate-700 whitespace-pre-wrap">{invoice.notes}</p>
+            <div className="bg-brand-canvas rounded-2xl p-6">
+              <p className="text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Notes</p>
+              <p className="text-brand-ink whitespace-pre-wrap">{invoice.notes}</p>
             </div>
           )}
 
           {/* Footer */}
-          <div className="mt-12 pt-8 border-t border-slate-200 text-center text-sm text-slate-500">
+          <div className="mt-10 pt-8 border-t border-brand-line text-center text-sm text-brand-muted">
             <p>Thank you for your business!</p>
             <p className="mt-2">Generated on {formatDate(invoice.created_at)}</p>
           </div>
@@ -487,4 +483,3 @@ export default function InvoiceDetailPage() {
     </div>
   );
 }
-
