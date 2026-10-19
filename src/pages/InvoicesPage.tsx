@@ -28,6 +28,25 @@ const STATUS_TONE: Record<string, PillTone> = {
   overdue: 'bad',
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Draft',
+  unpaid: 'Unpaid',
+  partially_paid: 'Partially paid',
+  paid: 'Paid',
+  overdue: 'Overdue',
+};
+
+// Issued invoices with money still owed after their due date show as overdue, matching the dashboard
+function displayStatus(invoice: { status: string; due_date: string; total_amount: number; amount_paid: number }): string {
+  if (invoice.status === 'draft' || invoice.status === 'paid') return invoice.status;
+  const owed = (invoice.total_amount || 0) - (invoice.amount_paid || 0) > 0.005;
+  const [y, m, d] = (invoice.due_date || '').split('-').map(Number);
+  const due = y ? new Date(y, m - 1, d) : null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return owed && due && due < today ? 'overdue' : invoice.status;
+}
+
 type Tab = 'all' | 'draft' | 'unpaid' | 'paid';
 
 export default function InvoicesPage() {
@@ -127,16 +146,16 @@ export default function InvoicesPage() {
 
       {/* Summary tiles */}
       {!isLoading && invoices.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
           {stats.map((stat) => (
-            <div key={stat.label} className={`rounded-[28px] p-5 sm:p-6 ${stat.highlight ? 'bg-brand-lime' : 'bg-white'}`}>
+            <div key={stat.label} className={`rounded-[28px] p-4 sm:p-6 ${stat.highlight ? 'bg-brand-lime' : 'bg-white'}`}>
               <div className="flex items-center justify-between gap-3">
-                <p className={`text-sm ${stat.highlight ? 'text-brand-ink/75' : 'text-brand-muted'}`}>{stat.label}</p>
+                <p className={`text-xs sm:text-sm ${stat.highlight ? 'text-brand-ink/75' : 'text-brand-muted'}`}>{stat.label}</p>
                 <span className={`w-9 h-9 rounded-full flex items-center justify-center ${stat.highlight ? 'bg-white/40 text-brand-ink' : 'border border-brand-line text-brand-ink'}`}>
                   {stat.icon}
                 </span>
               </div>
-              <p className="text-2xl sm:text-[28px] font-medium tracking-tight text-brand-ink mt-3 break-all">{withNaira(stat.value)}</p>
+              <p className="text-lg sm:text-[28px] font-medium tracking-tight text-brand-ink mt-3 break-all">{withNaira(stat.value)}</p>
             </div>
           ))}
         </div>
@@ -199,7 +218,7 @@ export default function InvoicesPage() {
                   <table className="w-full min-w-[640px]">
                     <thead>
                       <tr>
-                        <th className="table-head px-5 sm:px-6 py-3">Invoice #</th>
+                        <th className="table-head px-5 sm:px-6 py-3 whitespace-nowrap">Invoice #</th>
                         <th className="table-head px-5 sm:px-6 py-3">Date</th>
                         <th className="table-head px-5 sm:px-6 py-3">Due Date</th>
                         <th className="table-head px-5 sm:px-6 py-3">Amount</th>
@@ -211,14 +230,14 @@ export default function InvoicesPage() {
                       {groupedByMonth[item.month!].map((invoice) => (
                         <tr key={invoice.id} className="table-row">
                           <td className="px-5 sm:px-6 py-4">
-                            <span className="font-semibold text-brand-ink">{invoice.invoice_number}</span>
+                            <span className="font-semibold text-brand-ink whitespace-nowrap">{invoice.invoice_number}</span>
                           </td>
                           <td className="px-5 sm:px-6 py-4 text-brand-muted text-sm whitespace-nowrap">{formatDate(invoice.invoice_date)}</td>
                           <td className="px-5 sm:px-6 py-4 text-brand-muted text-sm whitespace-nowrap">{formatDate(invoice.due_date)}</td>
                           <td className="px-5 sm:px-6 py-4 font-semibold text-brand-ink whitespace-nowrap tabular-nums">{withNaira(formatCurrency(invoice.total_amount))}</td>
                           <td className="px-5 sm:px-6 py-4">
-                            <StatusPill tone={STATUS_TONE[invoice.status] || 'neutral'}>
-                              {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                            <StatusPill tone={STATUS_TONE[displayStatus(invoice)] || 'neutral'}>
+                              {STATUS_LABEL[displayStatus(invoice)] || invoice.status}
                             </StatusPill>
                           </td>
                           <td className="px-5 sm:px-6 py-4 text-right">

@@ -197,7 +197,7 @@ export default function ReportsPage() {
             <p className="text-sm text-brand-muted mt-1">Issue invoices and approve expenses to see your monthly VAT here.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="table-head">

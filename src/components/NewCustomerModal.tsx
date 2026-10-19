@@ -59,31 +59,32 @@ export default function NewCustomerModal({ isOpen, onClose, onCustomerCreated }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
+    <div className="fixed inset-0 bg-brand-ink/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="new-customer-title">
+      <div className="bg-white rounded-[28px] shadow-2xl max-w-md w-full max-h-[calc(100vh-2rem)] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900">Add New Customer</h2>
+        <div className="flex items-center justify-between p-6 pb-2">
+          <h2 id="new-customer-title" className="text-lg font-semibold text-brand-ink">Add New Customer</h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-slate-100 rounded transition-colors"
+            aria-label="Close"
+            className="w-10 h-10 flex items-center justify-center rounded-full border border-brand-line hover:bg-brand-canvas transition-colors"
           >
-            <X className="w-5 h-5 text-slate-600" />
+            <X className="w-5 h-5 text-brand-ink" />
           </button>
         </div>
 
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-2xl p-3 flex gap-2">
+              <AlertCircle className="w-4 h-4 text-brand-down flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-brand-down">{error}</p>
             </div>
           )}
 
           {/* Customer Name */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="field-label">
               Customer Name *
             </label>
             <input
@@ -92,13 +93,13 @@ export default function NewCustomerModal({ isOpen, onClose, onCustomerCreated }:
               value={formData.name}
               onChange={handleChange}
               placeholder="Company or individual name"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="input-field"
             />
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="field-label">
               Email (Optional)
             </label>
             <input
@@ -107,13 +108,13 @@ export default function NewCustomerModal({ isOpen, onClose, onCustomerCreated }:
               value={formData.email}
               onChange={handleChange}
               placeholder="customer@example.com"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="input-field"
             />
           </div>
 
           {/* Phone */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="field-label">
               Phone (Optional)
             </label>
             <input
@@ -122,7 +123,7 @@ export default function NewCustomerModal({ isOpen, onClose, onCustomerCreated }:
               value={formData.phone}
               onChange={handleChange}
               placeholder="+234 8XX XXX XXXX"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="input-field"
             />
           </div>
 
@@ -132,14 +133,14 @@ export default function NewCustomerModal({ isOpen, onClose, onCustomerCreated }:
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              className="btn-secondary flex-1"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+              className="btn-primary flex-1"
             >
               {isLoading ? 'Creating...' : 'Create Customer'}
             </button>

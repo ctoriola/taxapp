@@ -165,16 +165,16 @@ export default function ExpensesPage() {
       )}
 
       {/* Summary tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((stat) => (
-          <div key={stat.label} className={`rounded-[28px] p-5 sm:p-6 min-w-0 ${stat.highlight ? 'bg-brand-lime' : 'bg-white'}`}>
+          <div key={stat.label} className={`rounded-[28px] p-4 sm:p-6 min-w-0 ${stat.highlight ? 'bg-brand-lime' : 'bg-white'}`}>
             <div className="flex items-center justify-between gap-3">
-              <p className={`text-sm ${stat.highlight ? 'text-brand-ink/75' : 'text-brand-muted'}`}>{stat.label}</p>
+              <p className={`text-xs sm:text-sm ${stat.highlight ? 'text-brand-ink/75' : 'text-brand-muted'}`}>{stat.label}</p>
               <span className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${stat.highlight ? 'bg-white/40 text-brand-ink' : 'border border-brand-line text-brand-ink'}`}>
                 {stat.icon}
               </span>
             </div>
-            <p className="text-2xl sm:text-[28px] font-medium tracking-tight text-brand-ink mt-3 truncate">{stat.value}</p>
+            <p className="text-lg sm:text-[28px] font-medium tracking-tight text-brand-ink mt-3 break-all">{stat.value}</p>
           </div>
         ))}
       </div>
