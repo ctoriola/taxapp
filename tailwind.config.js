@@ -12,6 +12,8 @@ module.exports = {
         brand: {
           lime: '#B8EC82',
           'lime-soft': '#CFF3A9',
+          'lime-deep': '#8FD158',
+          green: '#3B841C', // accent text on light backgrounds (large text only)
           forest: '#1D3A12',
           'forest-hover': '#2A5019',
           ink: '#141414',
