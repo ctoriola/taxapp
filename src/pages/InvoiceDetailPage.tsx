@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Download, Send, Edit2, Copy, CheckCircle, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { updateInvoice } from '../services/invoiceService';
+import { issueInvoice, updateInvoice } from '../services/invoiceService';
+import { invoiceMailto, openEmail } from '../lib/invoiceEmail';
 import { useCustomers, useInvoices } from '../context/DataContext';
 import PageHeader from '../components/PageHeader';
 import StatusPill, { PillTone } from '../components/StatusPill';
@@ -46,6 +47,10 @@ export default function InvoiceDetailPage() {
   const { invoices, isLoading, error: loadError } = useInvoices();
   const invoice = invoices.find((i) => i.id === id) ?? null;
   const error = loadError || (!isLoading && !invoice ? 'Invoice not found' : '');
+  const location = useLocation();
+  const [sentNotice, setSentNotice] = useState(Boolean((location.state as { sent?: boolean } | null)?.sent));
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [copiedId, setCopiedId] = useState(false);
   const [isEditingPayment, setIsEditingPayment] = useState(false);
   const [amountPaid, setAmountPaid] = useState(0);
@@ -116,6 +121,24 @@ export default function InvoiceDetailPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  // Issue the draft and open the user's email app addressed to the customer
+  const handleSend = async () => {
+    if (!invoice) return;
+    const customer = customers.find((c) => c.id === invoice.customer_id);
+    if (!window.confirm(`Send ${invoice.invoice_number}${customer ? ` to ${customer.name}` : ''}? It will be marked as issued and count towards your VAT.`)) return;
+    setIsSending(true);
+    setSendError('');
+    try {
+      await issueInvoice(invoice);
+      openEmail(invoiceMailto({ invoice, customer, businessName: profile?.business_name }));
+      setSentNotice(true);
+    } catch {
+      setSendError("Couldn't send the invoice. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleEdit = () => {
@@ -241,9 +264,9 @@ export default function InvoiceDetailPage() {
                   <Edit2 className="w-4 h-4" />
                   Edit
                 </button>
-                <button className="btn-lime">
+                <button type="button" onClick={handleSend} disabled={isSending} className="btn-lime">
                   <Send className="w-4 h-4" />
-                  Send
+                  {isSending ? 'Sending…' : 'Send'}
                 </button>
               </>
             )}
@@ -258,6 +281,25 @@ export default function InvoiceDetailPage() {
           </>
         }
       />
+
+      {sentNotice && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] bg-brand-lime/40 px-5 py-4 print:hidden">
+          <p className="text-sm text-brand-ink">
+            <span className="font-semibold">Marked as sent.</span> Your email app opened with a message to{' '}
+            {customer?.email || 'your customer'}. Download the PDF and attach it before sending.
+          </p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={handleDownloadPDF} className="btn-primary h-9">
+              <Download className="w-4 h-4" />
+              Download PDF
+            </button>
+            <button type="button" onClick={() => setSentNotice(false)} className="text-sm font-medium text-brand-forest hover:underline">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+      {sendError && <p role="alert" className="text-sm text-brand-down">{sendError}</p>}
 
       {/* At-a-glance tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">

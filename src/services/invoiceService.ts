@@ -1,4 +1,4 @@
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { getDocFast, now, requireUid, settleWrite, userCollection, userCollectionDoc, withId } from './db';
 
 export interface InvoiceLineItem {
@@ -77,6 +77,22 @@ export async function updateInvoice(id: string, updates: InvoiceUpdate): Promise
     await settleWrite(updateDoc(userCollectionDoc(uid, 'invoices', id), { ...updates, updated_at: now() }));
   } catch (err) {
     console.error('Error updating invoice:', err);
+    throw err;
+  }
+}
+
+// Issue a draft: from now on it counts towards VAT and payment tracking
+export async function issueInvoice(invoice: Pick<Invoice, 'id' | 'amount_paid'>): Promise<void> {
+  await updateInvoice(invoice.id, { status: invoice.amount_paid > 0 ? 'partially_paid' : 'unpaid' });
+}
+
+// Delete an invoice. The app only offers this for drafts; issued invoices are tax records.
+export async function deleteInvoice(id: string): Promise<void> {
+  try {
+    const uid = await requireUid();
+    await settleWrite(deleteDoc(userCollectionDoc(uid, 'invoices', id)));
+  } catch (err) {
+    console.error('Error deleting invoice:', err);
     throw err;
   }
 }

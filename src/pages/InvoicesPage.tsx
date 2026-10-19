@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, Eye, Trash2, Send, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { useInvoices } from '../context/DataContext';
+import { useCustomers, useInvoices } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { deleteInvoice, issueInvoice } from '../services/invoiceService';
+import { invoiceMailto, openEmail } from '../lib/invoiceEmail';
 import DataErrorBanner from '../components/DataErrorBanner';
 import PageHeader from '../components/PageHeader';
 import StatusPill, { PillTone } from '../components/StatusPill';
@@ -52,7 +55,42 @@ type Tab = 'all' | 'draft' | 'unpaid' | 'paid';
 export default function InvoicesPage() {
   const navigate = useNavigate();
   const { invoices, isLoading, error: loadError } = useInvoices();
+  const { customers } = useCustomers();
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('all');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
+
+  const handleDelete = async (invoice: Invoice) => {
+    if (!window.confirm(`Delete draft ${invoice.invoice_number}? This can't be undone.`)) return;
+    setBusyId(invoice.id);
+    setActionError('');
+    try {
+      await deleteInvoice(invoice.id);
+    } catch {
+      setActionError(`Couldn't delete ${invoice.invoice_number}. Please try again.`);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Issue the draft, open the user's email app addressed to the customer, then show the invoice
+  // so they can download the PDF to attach
+  const handleSend = async (invoice: Invoice) => {
+    const customer = customers.find((c) => c.id === invoice.customer_id);
+    if (!window.confirm(`Send ${invoice.invoice_number}${customer ? ` to ${customer.name}` : ''}? It will be marked as issued and count towards your VAT.`)) return;
+    setBusyId(invoice.id);
+    setActionError('');
+    try {
+      await issueInvoice(invoice);
+      openEmail(invoiceMailto({ invoice, customer, businessName: profile?.business_name }));
+      navigate(`/invoices/${invoice.id}`, { state: { sent: true } });
+    } catch {
+      setActionError(`Couldn't send ${invoice.invoice_number}. Please try again.`);
+    } finally {
+      setBusyId(null);
+    }
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
 
@@ -142,7 +180,7 @@ export default function InvoicesPage() {
         }
       />
 
-      <DataErrorBanner errors={[loadError]} />
+      <DataErrorBanner errors={[loadError, actionError]} />
 
       {/* Summary tiles */}
       {!isLoading && invoices.length > 0 && (
@@ -259,8 +297,12 @@ export default function InvoicesPage() {
                                     <FileText className="w-4 h-4" />
                                   </button>
                                   <button
-                                    className="w-9 h-9 rounded-full flex items-center justify-center text-brand-down hover:bg-brand-down/10 transition-colors"
+                                    type="button"
+                                    onClick={() => handleDelete(invoice)}
+                                    disabled={busyId === invoice.id}
+                                    className="w-9 h-9 rounded-full flex items-center justify-center text-brand-down hover:bg-brand-down/10 transition-colors disabled:opacity-40"
                                     title="Delete"
+                                    aria-label={`Delete ${invoice.invoice_number}`}
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
@@ -268,8 +310,12 @@ export default function InvoicesPage() {
                               )}
                               {invoice.status === 'draft' && (
                                 <button
-                                  className="w-9 h-9 rounded-full flex items-center justify-center text-brand-up hover:bg-brand-lime/40 transition-colors"
+                                  type="button"
+                                  onClick={() => handleSend(invoice)}
+                                  disabled={busyId === invoice.id}
+                                  className="w-9 h-9 rounded-full flex items-center justify-center text-brand-up hover:bg-brand-lime/40 transition-colors disabled:opacity-40"
                                   title="Send"
+                                  aria-label={`Send ${invoice.invoice_number}`}
                                 >
                                   <Send className="w-4 h-4" />
                                 </button>

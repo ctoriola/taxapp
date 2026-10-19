@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Edit2, Trash2, Mail, Phone, Building2, FileText, Users, Wallet } from 'lucide-react';
+import { Edit2, Trash2, Mail, Phone, Building2, FileText, Users, Wallet, Check, X } from 'lucide-react';
 import { useCustomers, useInvoices } from '../context/DataContext';
 import PageHeader from '../components/PageHeader';
 import StatusPill, { PillTone } from '../components/StatusPill';
@@ -40,13 +40,18 @@ const BACK = { to: '/customers', label: 'All customers' };
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { customers, isLoading: customersLoading, error: customersError } = useCustomers();
+  const { customers, isLoading: customersLoading, error: customersError, updateCustomer, deleteCustomer } = useCustomers();
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', tax_id: '' });
+  const [isSaving, setIsSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const { invoices: allInvoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
 
   const customer: Customer | null = customers.find(c => c.id === id) ?? null;
   const invoices: Invoice[] = allInvoices.filter(inv => inv.customer_id === id);
   const isLoading = customersLoading || invoicesLoading;
-  const error = customersError || invoicesError || (!isLoading && !customer ? 'Customer not found' : '');
+  const error = (!customer && (customersError || invoicesError)) || (!isLoading && !customer ? 'Customer not found' : '');
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-NG', {
@@ -64,6 +69,56 @@ export default function CustomerDetailPage() {
     });
   };
 
+  const startEditing = () => {
+    if (!customer) return;
+    setForm({ name: customer.name, email: customer.email || '', phone: customer.phone || '', tax_id: customer.tax_id || '' });
+    setActionError('');
+    setIsEditing(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customer) return;
+    if (!form.name.trim()) {
+      setActionError('Customer name is required.');
+      return;
+    }
+    setIsSaving(true);
+    setActionError('');
+    try {
+      await updateCustomer(customer.id, {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        tax_id: form.tax_id.trim() || null,
+      });
+      setIsEditing(false);
+    } catch {
+      setActionError("Couldn't save the changes. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Customers with invoices can't be deleted: the invoices would lose who they were for
+  const handleDelete = async () => {
+    if (!customer) return;
+    if (invoices.length > 0) {
+      setActionError(`${customer.name} has ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}, so they can't be deleted. Delete their draft invoices first; issued invoices are tax records and stay.`);
+      return;
+    }
+    if (!window.confirm(`Delete ${customer.name}? This can't be undone.`)) return;
+    setActionError('');
+    setIsDeleting(true);
+    try {
+      await deleteCustomer(customer.id);
+      navigate('/customers');
+    } catch {
+      setIsDeleting(false);
+      setActionError(`Couldn't delete ${customer.name}. Please try again.`);
+    }
+  };
+
   // Calculate customer metrics
   const totalInvoiced = invoices.reduce((sum, i) => sum + i.total_amount, 0);
   const totalPaid = invoices.reduce((sum, i) => sum + i.amount_paid, 0);
@@ -71,7 +126,7 @@ export default function CustomerDetailPage() {
   const paidCount = invoices.filter(i => i.status === 'paid').length;
   const unpaidCount = invoices.filter(i => i.status === 'unpaid' || i.status === 'partially_paid').length;
 
-  if (isLoading) {
+  if ((isLoading && !customer) || isDeleting) {
     return (
       <div className="space-y-5">
         <PageHeader title="Customer" back={BACK} />
@@ -108,11 +163,11 @@ export default function CustomerDetailPage() {
         back={BACK}
         actions={
           <>
-            <button type="button" className="btn-primary">
+            <button type="button" onClick={startEditing} disabled={isEditing} className="btn-primary">
               <Edit2 className="w-4 h-4" />
               Edit
             </button>
-            <button type="button" className="btn-danger">
+            <button type="button" onClick={handleDelete} className="btn-danger">
               <Trash2 className="w-4 h-4" />
               Delete
             </button>
@@ -120,10 +175,47 @@ export default function CustomerDetailPage() {
         }
       />
 
+      {actionError && (
+        <p role="alert" className="rounded-2xl bg-brand-down/5 border border-brand-down/20 px-4 py-3 text-sm text-brand-down">{actionError}</p>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
         {/* Contact Information */}
         <Panel className="lg:col-span-5">
           <PanelTitle icon={<Users className="w-[18px] h-[18px]" />} title="Contact Information" />
+          {isEditing ? (
+            <form onSubmit={handleSave} className="space-y-4" aria-label="Edit customer">
+              {([
+                { key: 'name', label: 'Customer name', type: 'text', required: true },
+                { key: 'email', label: 'Email', type: 'email' },
+                { key: 'phone', label: 'Phone', type: 'tel' },
+                { key: 'tax_id', label: 'Tax ID (TIN)', type: 'text' },
+              ] as const).map((field) => (
+                <div key={field.key}>
+                  <label htmlFor={`edit-${field.key}`} className="field-label">{field.label}</label>
+                  <input
+                    id={`edit-${field.key}`}
+                    name={field.key}
+                    type={field.type}
+                    required={'required' in field}
+                    value={form[field.key]}
+                    onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button type="submit" disabled={isSaving} className="btn-primary">
+                  <Check className="w-4 h-4" />
+                  {isSaving ? 'Saving…' : 'Save changes'}
+                </button>
+                <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">
+                  <X className="w-4 h-4" />
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
           <ul className="space-y-4">
             {contactRows.map((row) => (
               <li key={row.label} className="flex items-center gap-3 min-w-0">
@@ -137,6 +229,7 @@ export default function CustomerDetailPage() {
               </li>
             ))}
           </ul>
+          )}
         </Panel>
 
         {/* Summary: lime highlight, like the dashboard's return card */}

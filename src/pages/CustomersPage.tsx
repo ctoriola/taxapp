@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, Trash2, Mail, Phone, Building2, ArrowUpRight } from 'lucide-react';
-import { useCustomers } from '../context/DataContext';
+import { useCustomers, useInvoices } from '../context/DataContext';
 import PageHeader from '../components/PageHeader';
 
 function formatAdded(value: string) {
@@ -11,6 +11,7 @@ function formatAdded(value: string) {
 
 export default function CustomersPage() {
   const { customers, deleteCustomer, isLoading, error } = useCustomers();
+  const { invoices } = useInvoices();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredCustomers = useMemo(() => {
@@ -26,7 +27,14 @@ export default function CustomersPage() {
     );
   }, [customers, searchQuery]);
 
+  // Customers with invoices can't be deleted: the invoices would lose who they were for
   const handleDelete = async (id: string) => {
+    const invoiceCount = invoices.filter((inv) => inv.customer_id === id).length;
+    if (invoiceCount > 0) {
+      const name = customers.find((c) => c.id === id)?.name || 'This customer';
+      window.alert(`${name} has ${invoiceCount} invoice${invoiceCount === 1 ? '' : 's'}, so they can't be deleted.`);
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
         await deleteCustomer(id);

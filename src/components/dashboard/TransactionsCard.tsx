@@ -19,6 +19,7 @@ interface Props {
   activity: ActivityItem[];
   pendingExpenses: Expense[];
   money: Money;
+  isLoading?: boolean;
 }
 
 const AMOUNT_STYLE: Record<ActivityItem['kind'], string> = {
@@ -29,7 +30,7 @@ const AMOUNT_STYLE: Record<ActivityItem['kind'], string> = {
 };
 
 // Latest invoices and expenses; an expense waiting for approval is pinned on top with approve/reject
-export default function TransactionsCard({ activity, pendingExpenses, money }: Props) {
+export default function TransactionsCard({ activity, pendingExpenses, money, isLoading = false }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const waiting = [...pendingExpenses].sort((a, b) => a.expense_date.localeCompare(b.expense_date));
@@ -83,7 +84,9 @@ export default function TransactionsCard({ activity, pendingExpenses, money }: P
       )}
       {error && <p role="alert" className="text-xs text-brand-down mt-2">{error}</p>}
 
-      {rows.length === 0 && !next ? (
+      {rows.length === 0 && !next && isLoading ? (
+        <p className="text-sm text-brand-muted" role="status">Loading your activity…</p>
+      ) : rows.length === 0 && !next ? (
         <p className="text-sm text-brand-muted">
           No activity yet. <Link to="/invoices/create" className="font-semibold text-brand-forest hover:underline">Create an invoice</Link> or{' '}
           <Link to="/expenses/create" className="font-semibold text-brand-forest hover:underline">record an expense</Link>.

@@ -35,8 +35,8 @@ function relativeDay(value: string): string {
 
 export default function DashboardPage() {
   const { customers } = useCustomers();
-  const { invoices, error: invoicesError } = useInvoices();
-  const { expenses, error: expensesError } = useExpenses();
+  const { invoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
+  const { expenses, isLoading: expensesLoading, error: expensesError } = useExpenses();
   const { vatReturns } = useVatReturns();
   const { profile } = useAuth();
 
@@ -129,7 +129,7 @@ export default function DashboardPage() {
             <SpendingCard activity={activity} monthOptions={monthOptions} onMonthChange={setMonth} money={money} hidden={hidden} />
             <EarningCard activity={activity} money={money} hidden={hidden} />
             <div className="md:col-span-2 xl:col-span-1 grid min-w-0">
-              <TransactionsCard activity={recentActivity} pendingExpenses={summary.pendingExpenses} money={money} />
+              <TransactionsCard activity={recentActivity} pendingExpenses={summary.pendingExpenses} money={money} isLoading={invoicesLoading || expensesLoading} />
             </div>
           </div>
 
