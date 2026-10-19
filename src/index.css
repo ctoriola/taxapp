@@ -65,11 +65,17 @@
 
 /* Urbanist has no ₦ glyph, so the sign is drawn from its "N" with two strokes to match the digits.
    The drawing is generated content; the real ₦ stays in the text at zero size, so copying,
-   screen readers and innerText all get "₦". */
+   screen readers and innerText all get "₦".
+   Geometry from Urbanist's metrics: with line-height 1 the box is 1em tall, the N's ink runs from
+   0.15em to 0.85em (cap height 0.7em), so its centre is exactly 0.5em. Horizontally the ink spans
+   0.06em to 0.5845em of the 0.6445em advance; the strokes overhang it by 0.08em on each side. */
 @layer components {
   .naira {
     position: relative;
     display: inline-block;
+    line-height: 1;
+    --naira-stroke: max(0.07em, 1px);
+    --naira-gap: 0.17em; /* distance between the strokes' centres */
   }
 
   .naira::before {
@@ -79,13 +85,13 @@
   .naira::after {
     content: '';
     position: absolute;
-    left: -0.08em;
-    right: -0.08em;
-    top: 0.36em;
-    height: 0.26em;
+    left: -0.02em;
+    right: -0.02em;
+    top: calc(0.5em - var(--naira-gap) / 2 - var(--naira-stroke) / 2);
+    height: calc(var(--naira-gap) + var(--naira-stroke));
     background:
-      linear-gradient(currentColor, currentColor) top / 100% max(0.075em, 1px) no-repeat,
-      linear-gradient(currentColor, currentColor) bottom / 100% max(0.075em, 1px) no-repeat;
+      linear-gradient(currentColor, currentColor) top / 100% var(--naira-stroke) no-repeat,
+      linear-gradient(currentColor, currentColor) bottom / 100% var(--naira-stroke) no-repeat;
   }
 
   .naira-text {
