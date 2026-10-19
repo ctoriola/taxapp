@@ -212,6 +212,8 @@ export function likelyVatFreeItems(invoice: Invoice): string[] {
 
 export interface InsightContext {
   filedPeriods?: Set<string>;
+  // True while filed returns are still loading: don't warn about unfiled returns yet
+  filedPeriodsLoading?: boolean;
   // The business's own TIN; undefined/empty means it isn't on their invoices
   businessTin?: string | null;
 }
@@ -269,7 +271,7 @@ export function buildInsights(
   }
 
   // 0. Returns past their due date that haven't been marked as filed
-  const unfiled = unfiledPastDueReturns(s, today, filedPeriods);
+  const unfiled = context.filedPeriodsLoading ? [] : unfiledPastDueReturns(s, today, filedPeriods);
   if (unfiled.length > 0) {
     const owed = unfiled.reduce((total, p) => total + Math.max(0, p.netVat), 0);
     insights.push({

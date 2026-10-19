@@ -5,11 +5,13 @@ import GlobalSearch from '../GlobalSearch';
 import NotificationsBell from '../NotificationsBell';
 import type { Insight } from '../../lib/finance';
 import { roundButton } from './ui';
+import { useMyClients } from '../../hooks/useMyClients';
 
 const TABS = [
   { label: 'Overview', to: '/dashboard' },
   { label: 'Invoices', to: '/invoices' },
   { label: 'Expenses', to: '/expenses' },
+  { label: 'Bank', to: '/bank' },
   { label: 'Reports', to: '/reports' },
   { label: 'Customers', to: '/customers' },
 ];
@@ -23,6 +25,7 @@ interface Props {
 
 export default function AppHeader({ name, logoUrl, insights, onLogout }: Props) {
   const { pathname } = useLocation();
+  const clients = useMyClients();
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +79,11 @@ export default function AppHeader({ name, logoUrl, insights, onLogout }: Props) 
       </nav>
 
       <div className="flex items-center gap-2">
+        {clients.length > 0 && (
+          <Link to="/clients" title="Businesses you review as an accountant" className="inline-flex items-center h-11 px-4 rounded-full bg-white text-sm font-semibold text-brand-ink hover:bg-stone-50">
+            Clients ({clients.length})
+          </Link>
+        )}
         <div ref={searchRef} className="relative">
           <button type="button" onClick={() => setSearchOpen(!searchOpen)} aria-label="Search" aria-expanded={searchOpen} className={`${roundButton} bg-white text-brand-ink hover:bg-stone-50`}>
             <Search className="w-[18px] h-[18px]" />

@@ -6,6 +6,8 @@ import { addCustomer, deleteCustomer, updateCustomer, Customer } from '../servic
 import { Invoice } from '../services/invoiceService';
 import { Expense } from '../services/expenseService';
 import { VatReturnRecord } from '../services/vatReturnService';
+import type { RecurringInvoice } from '../lib/recurring';
+import type { BankTransaction } from '../lib/bankImport';
 
 // One live subscription per collection for the whole session. Pages read from here, so
 // navigating between them is instant and every page sees new data as soon as it's written.
@@ -50,6 +52,8 @@ interface DataContextType {
   invoices: LiveCollection<Invoice>;
   expenses: LiveCollection<Expense>;
   vatReturns: LiveCollection<VatReturnRecord>;
+  recurringInvoices: LiveCollection<RecurringInvoice>;
+  bankTransactions: LiveCollection<BankTransaction>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -62,13 +66,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const invoices = useLiveCollection<Invoice>(uid, 'invoices', 'created_at', 'invoices');
   const expenses = useLiveCollection<Expense>(uid, 'expenses', 'expense_date', 'expenses');
   const vatReturns = useLiveCollection<VatReturnRecord>(uid, 'vatReturns', 'period', 'filed VAT returns');
+  const recurringInvoices = useLiveCollection<RecurringInvoice>(uid, 'recurringInvoices', 'created_at', 'recurring invoices');
+  const bankTransactions = useLiveCollection<BankTransaction>(uid, 'bankTransactions', 'date', 'bank transactions');
 
   // A save that outlived its confirmation timeout and was then rejected by the server
   const [backgroundError, setBackgroundError] = useState<string | null>(null);
   useEffect(() => onBackgroundWriteError(setBackgroundError), []);
 
   return (
-    <DataContext.Provider value={{ customers, invoices, expenses, vatReturns }}>
+    <DataContext.Provider value={{ customers, invoices, expenses, vatReturns, recurringInvoices, bankTransactions }}>
       {children}
       {backgroundError && (
         <div role="alert" className="fixed bottom-4 inset-x-4 sm:left-auto sm:right-4 sm:max-w-sm z-50 bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-3 shadow-lg">
@@ -99,6 +105,16 @@ export function useInvoices() {
 export function useExpenses() {
   const { expenses } = useData();
   return { expenses: expenses.items, isLoading: expenses.isLoading, error: expenses.error };
+}
+
+export function useRecurringInvoices() {
+  const { recurringInvoices } = useData();
+  return { schedules: recurringInvoices.items, isLoading: recurringInvoices.isLoading, error: recurringInvoices.error };
+}
+
+export function useBankTransactions() {
+  const { bankTransactions } = useData();
+  return { transactions: bankTransactions.items, isLoading: bankTransactions.isLoading, error: bankTransactions.error };
 }
 
 export function useVatReturns() {

@@ -266,3 +266,13 @@ describe('monthActivity', () => {
     expect(percentChange(150, 0)).toBeNull();
   });
 });
+
+describe('insights while filed returns load', () => {
+  it('holds back the unfiled-return warning until filed returns have loaded', () => {
+    const invoices = [invoice({ invoice_date: '2026-08-05', due_date: '2026-08-30' })];
+    const loading = buildInsights(invoices, [], [], TODAY, { filedPeriods: new Set(), filedPeriodsLoading: true });
+    const loaded = buildInsights(invoices, [], [], TODAY, { filedPeriods: new Set() });
+    expect(loading.some((i) => i.id === 'unfiled-returns')).toBe(false);
+    expect(loaded.some((i) => i.id === 'unfiled-returns')).toBe(true);
+  });
+});

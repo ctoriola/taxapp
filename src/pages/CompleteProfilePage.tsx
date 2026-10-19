@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { AlertCircle, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { saveUserProfile, uploadCompanyLogo } from '../services/customerService';
@@ -143,6 +143,10 @@ export default function CompleteProfilePage() {
         </form>
 
         <p className="text-center text-brand-muted text-sm mt-6">
+          Accountant reviewing a client's records?{' '}
+          <Link to="/clients" className="font-semibold text-brand-forest hover:underline">Go to your clients</Link>
+        </p>
+        <p className="text-center text-brand-muted text-sm mt-2">
           Wrong account?{' '}
           <button type="button" onClick={handleSignOut} className="font-semibold text-brand-forest hover:underline">
             Sign out

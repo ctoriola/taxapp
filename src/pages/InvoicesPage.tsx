@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, Eye, Trash2, Send, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, FileText, Eye, Trash2, Send, TrendingUp, AlertCircle, CheckCircle2, Repeat } from 'lucide-react';
 import { useCustomers, useInvoices } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { deleteInvoice, issueInvoice } from '../services/invoiceService';
@@ -173,10 +173,16 @@ export default function InvoicesPage() {
         title="Invoices"
         description="Manage and track your invoices"
         actions={
+          <>
+          <button type="button" onClick={() => navigate('/invoices/recurring')} className="btn-secondary">
+            <Repeat className="w-4 h-4" />
+            Recurring
+          </button>
           <button onClick={() => navigate('/invoices/create')} className="btn-primary">
             <Plus className="w-4 h-4" />
             Create Invoice
           </button>
+          </>
         }
       />
 

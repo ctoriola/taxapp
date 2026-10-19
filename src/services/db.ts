@@ -14,7 +14,7 @@ import { auth, db } from '../lib/firebase';
 
 // All of a user's data lives under users/{uid}: the profile is the document itself and
 // customers, invoices, expenses and vatReturns are subcollections. Security rules key off that uid.
-export type UserCollection = 'customers' | 'invoices' | 'expenses' | 'vatReturns';
+export type UserCollection = 'customers' | 'invoices' | 'expenses' | 'vatReturns' | 'branding' | 'recurringInvoices' | 'bankTransactions' | 'accountants';
 
 export async function requireUid(): Promise<string> {
   await auth.authStateReady();

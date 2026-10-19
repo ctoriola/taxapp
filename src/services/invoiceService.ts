@@ -26,6 +26,7 @@ export interface Invoice {
   status: InvoiceStatus;
   line_items: InvoiceLineItem[];
   company_logo_url?: string;
+  recurring_id?: string; // set on drafts generated from a recurring schedule
   created_at: string;
   updated_at: string;
 }
