@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Plus, Search, TrendingDown, DollarSign, AlertCircle, CheckCircle2, Clock, XCircle, Menu, X, LogOut, Settings, Bell, Home } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, TrendingDown, AlertCircle, CheckCircle2, Clock, XCircle, Package, Plug, Plane, Utensils, Monitor, Briefcase, CircleDollarSign } from 'lucide-react';
 import { Expense } from '../services/expenseService';
 import { useExpenses } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
-import GlobalSearch from '../components/GlobalSearch';
+import PageHeader from '../components/PageHeader';
+import StatusPill, { PillTone } from '../components/StatusPill';
+import { withNaira } from '../components/dashboard/ui';
 
 type TabType = 'all' | 'draft' | 'pending' | 'approved' | 'rejected';
 
@@ -18,45 +19,37 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  office_supplies: <Package className="w-4 h-4" />,
+  utilities: <Plug className="w-4 h-4" />,
+  travel: <Plane className="w-4 h-4" />,
+  meals: <Utensils className="w-4 h-4" />,
+  equipment: <Monitor className="w-4 h-4" />,
+  services: <Briefcase className="w-4 h-4" />,
+  other: <CircleDollarSign className="w-4 h-4" />,
+};
+
+const STATUS: Record<string, { tone: PillTone; icon: React.ReactNode; label: string }> = {
+  draft: { tone: 'neutral', icon: <Clock className="w-3 h-3" />, label: 'Draft' },
+  pending: { tone: 'warn', icon: <AlertCircle className="w-3 h-3" />, label: 'Pending' },
+  approved: { tone: 'good', icon: <CheckCircle2 className="w-3 h-3" />, label: 'Approved' },
+  rejected: { tone: 'bad', icon: <XCircle className="w-3 h-3" />, label: 'Rejected' },
+};
+
 function getStatusBadge(status: string) {
-  const config = {
-    draft: { bg: 'bg-slate-100', text: 'text-slate-700', icon: Clock, label: 'Draft' },
-    pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: AlertCircle, label: 'Pending' },
-    approved: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle2, label: 'Approved' },
-    rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle, label: 'Rejected' },
-  };
-
-  const cfg = config[status as keyof typeof config];
+  const cfg = STATUS[status];
   if (!cfg) return null;
-
-  const Icon = cfg.icon;
-  return (
-    <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${cfg.bg} ${cfg.text}`}>
-      <Icon className="w-3 h-3" />
-      {cfg.label}
-    </div>
-  );
+  return <StatusPill tone={cfg.tone} icon={cfg.icon}>{cfg.label}</StatusPill>;
 }
 
 export default function ExpensesPage() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
   const { expenses, isLoading, error } = useExpenses();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [showVATOnly, setShowVATOnly] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -145,320 +138,202 @@ export default function ExpensesPage() {
       day: 'numeric',
     });
 
+  const stats = [
+    { label: 'Total Expenses', value: withNaira(formatCurrency(totalExpenses)), icon: <TrendingDown className="w-[18px] h-[18px]" />, highlight: false },
+    { label: 'Approved', value: withNaira(formatCurrency(totalApproved)), icon: <CheckCircle2 className="w-[18px] h-[18px]" />, highlight: true },
+    { label: 'VAT Reclaimable', value: withNaira(formatCurrency(totalVAT)), icon: <AlertCircle className="w-[18px] h-[18px]" />, highlight: false },
+    { label: 'Pending Review', value: pendingCount, icon: <Clock className="w-[18px] h-[18px]" />, highlight: false },
+  ];
+
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Top Navigation */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-stone-200/50">
-        <div className="flex items-center justify-between px-6 lg:px-8 py-4">
-          {/* Left: Logo & Sidebar Toggle */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-stone-100 rounded-xl transition-all duration-200"
-            >
-              {sidebarOpen ? (
-                <X className="w-6 h-6 text-slate-600" />
-              ) : (
-                <Menu className="w-6 h-6 text-slate-600" />
-              )}
-            </button>            <Link
-              to="/dashboard"
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Dashboard"
-            >
-              <Home className="w-5 h-5 text-slate-600" />
-            </Link>            <div className="hidden lg:flex items-center gap-3">
-              {profile?.logo_url && (
-                <img
-                  src={profile.logo_url}
-                  alt="Company logo"
-                  className="h-8 w-auto"
-                />
-              )}
-              <div>
-                <h2 className="text-xl font-bold text-emerald-700">{profile?.business_name || 'Business'}</h2>
-                <p className="text-xs text-slate-600 mt-1">Logged in as: {user?.email || 'User'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Center: Search */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <GlobalSearch />
-          </div>
-
-          {/* Right: Notifications & Profile */}
-          <div className="flex items-center gap-4">
-            <button className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200 relative">
-              <Bell className="w-5 h-5 text-slate-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-600 rounded-full"></span>
-            </button>
-
-            {profile?.logo_url ? (
-              <img
-                src={profile.logo_url}
-                alt="Company logo"
-                className="h-10 w-10 rounded-full object-cover cursor-pointer hover:shadow-lg transition-all"
-              />
-            ) : (
-              <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-emerald-700 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:shadow-lg transition-all">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
-
-            <Link
-              to="/settings"
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Settings"
-            >
-              <Settings className="w-5 h-5 text-slate-600" />
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5 text-slate-600" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <main className="px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-emerald-900">Expenses</h1>
-            <p className="text-sm text-slate-600 mt-1">Track and manage your business expenses</p>
-          </div>
-          <button
-            onClick={() => navigate('/expenses/create')}
-            className="btn-primary flex items-center gap-2 rounded-2xl"
-          >
-            <Plus className="w-5 h-5" />
+    <div className="space-y-5">
+      <PageHeader
+        title="Expenses"
+        description="Track and manage your business expenses"
+        actions={
+          <button onClick={() => navigate('/expenses/create')} className="btn-primary">
+            <Plus className="w-4 h-4" />
             Record Expense
           </button>
+        }
+      />
+
+      {error && (
+        <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-2xl p-4">
+          <p className="text-brand-down text-sm font-medium">{error}</p>
         </div>
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
-            <p className="text-red-700 text-sm font-medium">{error}</p>
-          </div>
-        )}
+      )}
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="card-bento p-6 bg-gradient-to-br from-red-50 to-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-stone-600 mb-2 font-medium">Total Expenses</p>
-                <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalExpenses)}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
-                <TrendingDown className="w-6 h-6 text-red-600" />
-              </div>
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {stats.map((stat) => (
+          <div key={stat.label} className={`rounded-[28px] p-4 sm:p-6 min-w-0 ${stat.highlight ? 'bg-brand-lime' : 'bg-white'}`}>
+            <div className="flex items-center justify-between gap-3">
+              <p className={`text-xs sm:text-sm ${stat.highlight ? 'text-brand-ink/75' : 'text-brand-muted'}`}>{stat.label}</p>
+              <span className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${stat.highlight ? 'bg-white/40 text-brand-ink' : 'border border-brand-line text-brand-ink'}`}>
+                {stat.icon}
+              </span>
             </div>
+            <p className="text-lg sm:text-[28px] font-medium tracking-tight text-brand-ink mt-3 break-all">{stat.value}</p>
           </div>
+        ))}
+      </div>
 
-          <div className="card-bento p-6 bg-gradient-to-br from-emerald-50 to-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-stone-600 mb-2 font-medium">Approved</p>
-                <p className="text-2xl font-bold text-emerald-700">{formatCurrency(totalApproved)}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="card-bento p-6 bg-gradient-to-br from-blue-50 to-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-stone-600 mb-2 font-medium">VAT Reclaimable</p>
-                <p className="text-2xl font-bold text-blue-700">{formatCurrency(totalVAT)}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="card-bento p-6 bg-gradient-to-br from-amber-50 to-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-stone-600 mb-2 font-medium">Pending Review</p>
-                <p className="text-2xl font-bold text-amber-700">{pendingCount}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
-              </div>
-            </div>
+      {/* Filters */}
+      <div className="card p-4 sm:p-5 space-y-4">
+        <div className="overflow-x-auto">
+          <div role="tablist" aria-label="Expense status" className="inline-flex p-1 rounded-full bg-brand-canvas min-w-max">
+            {tabs.map((tab) => (
+              <button
+                key={tab.value}
+                role="tab"
+                aria-selected={activeTab === tab.value}
+                onClick={() => setActiveTab(tab.value as TabType)}
+                className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${
+                  activeTab === tab.value ? 'bg-white text-brand-ink font-semibold shadow-sm' : 'text-brand-muted font-medium hover:text-brand-ink'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
-
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2 border-b border-stone-200/50 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value as TabType)}
-              className={`px-4 py-3 font-medium whitespace-nowrap transition-colors border-b-2 ${
-                activeTab === tab.value
-                  ? 'border-emerald-700 text-emerald-700'
-                  : 'border-transparent text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-4 top-3 w-5 h-5 text-stone-400" />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-muted" />
             <input
               type="text"
               placeholder="Search expenses..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field w-full pl-12"
+              className="input-field pl-11"
             />
           </div>
-        </div>
-
-        {/* VAT Toggle */}
-        <div className="mb-6 flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="vatToggle"
-            checked={showVATOnly}
-            onChange={(e) => setShowVATOnly(e.target.checked)}
-            className="w-4 h-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-700"
-          />
-          <label htmlFor="vatToggle" className="text-sm font-medium text-stone-700">
+          <label htmlFor="vatToggle" className="flex items-center gap-3 text-sm font-medium text-brand-ink cursor-pointer">
+            <input
+              type="checkbox"
+              id="vatToggle"
+              checked={showVATOnly}
+              onChange={(e) => setShowVATOnly(e.target.checked)}
+              className="w-4 h-4 rounded border-brand-line accent-brand-forest"
+            />
             Show only expenses with VAT
           </label>
         </div>
+      </div>
 
-        {/* Loading State */}
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="w-12 h-12 border-4 border-stone-300 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-stone-600">Loading expenses...</p>
-          </div>
-        ) : filteredExpenses.length > 0 ? (
-          <>
-            {paginatedItems.map((item, index) => (
-              item.type === 'month' ? (
-                <div key={`month-${index}`} className="mb-6">
-                  <h3 className="text-lg font-bold text-slate-900 mb-4 mt-6">{item.month}</h3>
-                  <div className="card-bento overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-stone-200/50 bg-stone-100/50">
-                            <th className="px-6 py-4 text-left text-xs uppercase tracking-wider font-semibold text-stone-900">Date</th>
-                            <th className="px-6 py-4 text-left text-xs uppercase tracking-wider font-semibold text-stone-900">Description</th>
-                            <th className="px-6 py-4 text-left text-xs uppercase tracking-wider font-semibold text-stone-900">Category</th>
-                            <th className="px-6 py-4 text-left text-xs uppercase tracking-wider font-semibold text-stone-900">Amount</th>
-                            <th className="px-6 py-4 text-left text-xs uppercase tracking-wider font-semibold text-stone-900">VAT</th>
-                            <th className="px-6 py-4 text-left text-xs uppercase tracking-wider font-semibold text-stone-900">Status</th>
-                            <th className="px-6 py-4 text-left text-xs uppercase tracking-wider font-semibold text-stone-900">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {groupedByMonth[item.month!].map((expense) => (
-                            <tr key={expense.id} className="border-b border-stone-200/50 hover:bg-stone-50/50 transition-colors">
-                              <td className="px-6 py-4 text-sm text-slate-900">{formatDate(expense.expense_date)}</td>
-                              <td className="px-6 py-4">
-                                <div className="text-sm font-medium text-slate-900">{expense.description}</div>
-                                {expense.notes && <div className="text-xs text-stone-500 mt-1">{expense.notes}</div>}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-stone-600">
-                                {CATEGORY_LABELS[expense.category]}
-                              </td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                                {formatCurrency(expense.amount)}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-stone-600">
-                                {expense.apply_vat ? formatCurrency(expense.vat_amount) : 'No VAT'}
-                              </td>
-                              <td className="px-6 py-4">{getStatusBadge(expense.status)}</td>
-                              <td className="px-6 py-4">
-                                <button
-                                  onClick={() => navigate(`/expenses/${expense.id}`)}
-                                  className="text-emerald-600 hover:text-emerald-700 font-medium text-sm transition-colors"
-                                >
-                                  View
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+      {/* List */}
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="w-10 h-10 border-4 border-brand-line border-t-brand-forest rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-brand-muted">Loading expenses...</p>
+        </div>
+      ) : filteredExpenses.length > 0 ? (
+        <>
+          {paginatedItems.map((item, index) =>
+            item.type === 'month' ? (
+              <section key={`month-${index}`} className="card p-0 overflow-hidden">
+                <h3 className="px-5 sm:px-6 pt-5 pb-3 text-lg font-semibold text-brand-ink">{item.month}</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px]">
+                    <thead>
+                      <tr>
+                        <th className="table-head px-5 sm:px-6 py-3">Date</th>
+                        <th className="table-head px-4 py-3">Description</th>
+                        <th className="table-head px-4 py-3">Category</th>
+                        <th className="table-head px-4 py-3">Amount</th>
+                        <th className="table-head px-4 py-3">VAT</th>
+                        <th className="table-head px-4 py-3">Status</th>
+                        <th className="table-head px-4 py-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedByMonth[item.month!].map((expense) => (
+                        <tr key={expense.id} className="table-row">
+                          <td className="px-5 sm:px-6 py-4 text-sm text-brand-ink whitespace-nowrap">{formatDate(expense.expense_date)}</td>
+                          <td className="px-4 py-4">
+                            <div className="text-sm font-medium text-brand-ink">{expense.description}</div>
+                            {expense.notes && <div className="text-xs text-brand-muted mt-1">{expense.notes}</div>}
+                          </td>
+                          <td className="px-4 py-4 text-sm text-brand-muted">
+                            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                              {CATEGORY_ICONS[expense.category]}
+                              {CATEGORY_LABELS[expense.category]}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-sm font-medium text-brand-ink whitespace-nowrap tabular-nums">{withNaira(formatCurrency(expense.amount))}</td>
+                          <td className="px-4 py-4 text-sm text-brand-muted whitespace-nowrap tabular-nums">
+                            {expense.apply_vat ? withNaira(formatCurrency(expense.vat_amount)) : 'No VAT'}
+                          </td>
+                          <td className="px-4 py-4">{getStatusBadge(expense.status)}</td>
+                          <td className="px-4 py-4">
+                            <button
+                              onClick={() => navigate(`/expenses/${expense.id}`)}
+                              className="text-brand-forest hover:underline font-semibold text-sm"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ) : null
-            ))}
+              </section>
+            ) : null
+          )}
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8 mb-8">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 rounded-lg bg-stone-100 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-stone-200 transition-colors"
-                >
-                  Previous
-                </button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-2 rounded-lg transition-colors ${
-                        currentPage === page
-                          ? 'bg-emerald-700 text-white'
-                          : 'bg-stone-100 text-slate-700 hover:bg-stone-200'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 rounded-lg bg-stone-100 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-stone-200 transition-colors"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="card-bento p-12 text-center">
-            <TrendingDown className="w-12 h-12 text-stone-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No expenses yet</h3>
-            <p className="text-stone-600 mb-6">
-              {activeTab !== 'all'
-                ? 'No expenses in this category.'
-                : 'Start recording expenses to track your spending.'}
-            </p>
-            {activeTab === 'all' && (
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
               <button
-                onClick={() => navigate('/expenses/create')}
-                className="inline-flex items-center gap-2 px-4 py-2 btn-primary rounded-2xl transition-all"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="h-10 px-4 rounded-full bg-white text-sm font-medium text-brand-ink disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-lime/40 transition-colors"
               >
-                <Plus className="w-5 h-5" />
-                Record Expense
+                Previous
               </button>
-            )}
-          </div>
-        )}
-      </main>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    aria-current={currentPage === page ? 'page' : undefined}
+                    className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                      currentPage === page ? 'bg-brand-forest text-brand-lime' : 'bg-white text-brand-ink hover:bg-brand-lime/40'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="h-10 px-4 rounded-full bg-white text-sm font-medium text-brand-ink disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-lime/40 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="card p-10 sm:p-12 text-center">
+          <span className="w-14 h-14 rounded-full bg-brand-lime/50 text-brand-forest flex items-center justify-center mx-auto mb-4">
+            <TrendingDown className="w-6 h-6" />
+          </span>
+          <h3 className="text-lg font-semibold text-brand-ink mb-2">No expenses yet</h3>
+          <p className="text-brand-muted mb-6">
+            {activeTab !== 'all' ? 'No expenses in this category.' : 'Start recording expenses to track your spending.'}
+          </p>
+          {activeTab === 'all' && (
+            <button onClick={() => navigate('/expenses/create')} className="btn-primary">
+              <Plus className="w-4 h-4" />
+              Record Expense
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

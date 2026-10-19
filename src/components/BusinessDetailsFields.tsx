@@ -28,28 +28,28 @@ export default function BusinessDetailsFields({
     <>
       {/* Business Name */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Business Name</label>
+        <label className="field-label">Business Name</label>
         <div className="relative">
-          <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted pointer-events-none" />
           <input
             type="text"
             name="businessName"
             value={values.businessName}
             onChange={onChange}
             placeholder="Your company name"
-            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="input-field pl-12"
           />
         </div>
       </div>
 
       {/* Business Type */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Business Type</label>
+        <label className="field-label">Business Type</label>
         <select
           name="businessType"
           value={values.businessType}
           onChange={onChange}
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="input-field"
         >
           <option value="">Select a business type</option>
           <option value="retail">Retail</option>
@@ -64,50 +64,51 @@ export default function BusinessDetailsFields({
 
       {/* Phone */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Phone Number</label>
+        <label className="field-label">Phone Number</label>
         <div className="relative">
-          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted pointer-events-none" />
           <input
             type="tel"
             name="phone"
             value={values.phone}
             onChange={onChange}
             placeholder="+234 8XX XXX XXXX"
-            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="input-field pl-12"
           />
         </div>
       </div>
 
       {/* Location */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Location</label>
+        <label className="field-label">Location</label>
         <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted pointer-events-none" />
           <input
             type="text"
             name="location"
             value={values.location}
             onChange={onChange}
             placeholder="City/Region"
-            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="input-field pl-12"
           />
         </div>
       </div>
 
       {/* Company Logo */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Company Logo (Optional)</label>
+        <label className="field-label">Company Logo (Optional)</label>
         {logoPreview ? (
-          <div className="relative">
+          <div className="relative w-max">
             <img
               src={logoPreview}
               alt="Logo preview"
-              className="w-24 h-24 object-contain bg-slate-50 border border-slate-300 rounded-lg p-2"
+              className="w-24 h-24 object-contain bg-brand-canvas rounded-2xl p-2"
             />
             <button
               type="button"
               onClick={onRemoveLogo}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+              aria-label="Remove logo"
+              className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white border border-brand-line text-brand-down flex items-center justify-center hover:bg-brand-down/5"
             >
               <X className="w-4 h-4" />
             </button>
@@ -120,10 +121,10 @@ export default function BusinessDetailsFields({
               onChange={onLogoChange}
               className="hidden"
             />
-            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:bg-slate-50 transition-colors">
-              <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-              <p className="text-sm text-slate-600">Click to upload your company logo</p>
-              <p className="text-xs text-slate-500 mt-1">PNG, JPG up to 500 KB</p>
+            <div className="border-2 border-dashed border-brand-line rounded-2xl p-6 text-center cursor-pointer hover:bg-brand-canvas/60 transition-colors">
+              <Upload className="w-6 h-6 text-brand-muted mx-auto mb-2" />
+              <p className="text-sm text-brand-ink">Click to upload your company logo</p>
+              <p className="text-xs text-brand-muted mt-1">PNG, JPG up to 500 KB</p>
             </div>
           </label>
         )}

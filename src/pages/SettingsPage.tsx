@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle, CheckCircle, Loader, Menu, X, LogOut, Settings as SettingsIcon, Bell, Upload, X as XIcon, Home } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Loader, Upload, X as XIcon, User, Building2, ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateUserProfile, fetchUserProfile, UserProfile, uploadCompanyLogo } from '../services/customerService';
-import GlobalSearch from '../components/GlobalSearch';
+import PageHeader from '../components/PageHeader';
+import { PanelTitle } from '../components/dashboard/ui';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { profile, user, refreshProfile, signOut } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   const [formData, setFormData] = useState<Omit<UserProfile, 'id' | 'created_at' | 'updated_at'> | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
@@ -15,16 +16,6 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
 
   useEffect(() => {
     // Load profile data from context or fetch it
@@ -174,171 +165,84 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader className="w-8 h-8 text-emerald-600 animate-spin mx-auto mb-4" />
-          <p className="text-stone-600">Loading settings...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-24" role="status">
+        <div className="w-10 h-10 border-4 border-brand-line border-t-brand-forest rounded-full animate-spin mb-4"></div>
+        <p className="text-brand-muted">Loading settings...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Top Navigation */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-stone-200/50">
-        <div className="flex items-center justify-between px-6 lg:px-8 py-4">
-          {/* Left: Logo & Sidebar Toggle */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-stone-100 rounded-xl transition-all duration-200"
-            >
-              {sidebarOpen ? (
-                <X className="w-6 h-6 text-slate-600" />
-              ) : (
-                <Menu className="w-6 h-6 text-slate-600" />
-              )}
-            </button>            <Link
-              to="/dashboard"
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Dashboard"
-            >
-              <Home className="w-5 h-5 text-slate-600" />
-            </Link>            <div className="hidden lg:flex items-center gap-3">
-              {profile?.logo_url && (
-                <img
-                  src={profile.logo_url}
-                  alt="Company logo"
-                  className="h-8 w-auto"
-                />
-              )}
-              <div>
-                <h2 className="text-xl font-bold text-emerald-700">{profile?.business_name || 'Business'}</h2>
-                <p className="text-xs text-slate-600 mt-1">Logged in as: {user?.email || 'User'}</p>
-              </div>
-            </div>
-          </div>
+    <div className="max-w-3xl space-y-5">
+      <PageHeader title="Settings" description="Your account and the business details shown on your invoices" />
 
-          {/* Center: Search */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <GlobalSearch />
-          </div>
-
-          {/* Right: Notifications & Profile */}
-          <div className="flex items-center gap-4">
-            <button className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200 relative">
-              <Bell className="w-5 h-5 text-slate-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-600 rounded-full"></span>
-            </button>
-
-            {profile?.logo_url ? (
-              <img
-                src={profile.logo_url}
-                alt="Company logo"
-                className="h-10 w-10 rounded-full object-cover cursor-pointer hover:shadow-lg transition-all"
-              />
-            ) : (
-              <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-emerald-700 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:shadow-lg transition-all">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
-
-            <button
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Settings"
-            >
-              <SettingsIcon className="w-5 h-5 text-slate-600" />
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5 text-slate-600" />
-            </button>
+      {error && (
+        <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-2xl p-4 flex gap-3">
+          <AlertCircle className="w-5 h-5 text-brand-down flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-brand-ink">Error</p>
+            <p className="text-sm text-brand-down">{error}</p>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Main Content */}
-      <main className="px-6 lg:px-8 py-8">
-        {/* Profile Update Card */}
-        <div className="card-bento bg-white p-8 mb-6">
-          <h2 className="text-xl font-bold text-emerald-900 mb-6">Update Profile</h2>
+      {success && (
+        <div role="status" className="bg-brand-lime/40 rounded-2xl p-4 flex gap-3">
+          <CheckCircle className="w-5 h-5 text-brand-forest flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-brand-ink">Success!</p>
+            <p className="text-sm text-brand-forest">Your profile has been updated</p>
+          </div>
+        </div>
+      )}
 
-          {/* Error Alert */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-red-900">Error</p>
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Success Alert */}
-          {success && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-6 flex gap-3">
-              <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-emerald-900">Success!</p>
-                <p className="text-sm text-emerald-700">Your profile has been updated</p>
-              </div>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email (Read-only) */}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Account */}
+        <section className="card p-5 sm:p-6">
+          <PanelTitle icon={<User className="w-[18px] h-[18px]" />} title="Account" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Email Address</label>
+              <label className="field-label">Email Address</label>
               <input
                 type="email"
                 value={formData?.email || ''}
                 disabled
-                className="w-full px-4 py-2 border border-stone-200 rounded-2xl bg-stone-100 text-stone-600 cursor-not-allowed"
+                className="w-full px-4 py-3 rounded-2xl border border-brand-line bg-brand-canvas text-brand-muted cursor-not-allowed"
               />
-              <p className="text-xs text-stone-500 mt-1">Email cannot be changed</p>
+              <p className="text-xs text-brand-muted mt-1">Email cannot be changed</p>
             </div>
-
-            {/* Full Name */}
             <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Full Name</label>
+              <label className="field-label">Full Name</label>
               <input
                 type="text"
                 name="full_name"
                 value={formData?.full_name || ''}
                 onChange={handleChange}
                 placeholder="Your full name"
-                className="input-field w-full"
+                className="input-field"
               />
             </div>
+          </div>
+        </section>
 
-            {/* Business Name */}
+        {/* Business */}
+        <section className="card p-5 sm:p-6">
+          <PanelTitle icon={<Building2 className="w-[18px] h-[18px]" />} title="Business" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Business Name</label>
+              <label className="field-label">Business Name</label>
               <input
                 type="text"
                 name="business_name"
                 value={formData?.business_name || ''}
                 onChange={handleChange}
                 placeholder="Your company name"
-                className="input-field w-full"
+                className="input-field"
               />
             </div>
-
-            {/* Business Type */}
             <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Business Type</label>
-              <select
-                name="business_type"
-                value={formData?.business_type || ''}
-                onChange={handleChange}
-                className="input-field w-full"
-              >
+              <label className="field-label">Business Type</label>
+              <select name="business_type" value={formData?.business_type || ''} onChange={handleChange} className="input-field">
                 <option value="">Select a business type</option>
                 <option value="retail">Retail</option>
                 <option value="services">Services</option>
@@ -349,121 +253,99 @@ export default function SettingsPage() {
                 <option value="other">Other</option>
               </select>
             </div>
-
-            {/* Phone */}
             <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Phone Number</label>
+              <label className="field-label">Phone Number</label>
               <input
                 type="tel"
                 name="phone"
                 value={formData?.phone || ''}
                 onChange={handleChange}
                 placeholder="+234 8XX XXX XXXX"
-                className="input-field w-full"
+                className="input-field"
               />
             </div>
-
-            {/* Location */}
             <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Location</label>
+              <label className="field-label">Location</label>
               <input
                 type="text"
                 name="location"
                 value={formData?.location || ''}
                 onChange={handleChange}
                 placeholder="City/Region"
-                className="input-field w-full"
+                className="input-field"
               />
             </div>
-
-            {/* TIN */}
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Tax Identification Number (TIN)</label>
+            <div className="sm:col-span-2">
+              <label className="field-label">Tax Identification Number (TIN)</label>
               <input
                 type="text"
                 name="tax_id"
                 value={formData?.tax_id || ''}
                 onChange={handleChange}
                 placeholder="e.g. 12345678-0001"
-                className="input-field w-full"
+                className="input-field"
               />
-              <p className="text-xs text-stone-500 mt-1">Optional. Shown on your invoices; VAT invoices should carry your TIN.</p>
+              <p className="text-xs text-brand-muted mt-1">Optional. Shown on your invoices; VAT invoices should carry your TIN.</p>
             </div>
+          </div>
+        </section>
 
-            {/* Company Logo */}
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-700 mb-2 font-medium">Company Logo</label>
-              {logoPreview ? (
-                <div className="relative">
-                  <img
-                    src={logoPreview}
-                    alt="Logo preview"
-                    className="w-24 h-24 object-contain bg-stone-50 border border-stone-200 rounded-lg p-2"
-                  />
-                  <button
-                    type="button"
-                    onClick={removeLogo}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                  >
-                    <XIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <label className="block">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoChange}
-                    className="hidden"
-                  />
-                  <div className="border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center cursor-pointer hover:bg-stone-50 transition-colors">
-                    <Upload className="w-6 h-6 text-stone-400 mx-auto mb-2" />
-                    <p className="text-sm text-stone-600">Click to upload company logo</p>
-                    <p className="text-xs text-stone-500 mt-1">PNG, JPG up to 500 KB (Optional)</p>
-                  </div>
-                </label>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <div className="flex gap-3 pt-4">
+        {/* Logo */}
+        <section className="card p-5 sm:p-6">
+          <PanelTitle icon={<ImageIcon className="w-[18px] h-[18px]" />} title="Company Logo" />
+          {logoPreview ? (
+            <div className="relative w-max">
+              <img src={logoPreview} alt="Logo preview" className="w-28 h-28 object-contain bg-brand-canvas rounded-2xl p-3" />
               <button
                 type="button"
-                onClick={() => navigate('/dashboard')}
-                className="flex-1 btn-secondary rounded-2xl py-2 transition-all"
+                onClick={removeLogo}
+                aria-label="Remove logo"
+                className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white border border-brand-line text-brand-down flex items-center justify-center hover:bg-brand-down/5"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="flex-1 btn-primary rounded-2xl py-2 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </>
-                )}
+                <XIcon className="w-4 h-4" />
               </button>
             </div>
-          </form>
-        </div>
+          ) : (
+            <label className="block">
+              <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+              <div className="border-2 border-dashed border-brand-line rounded-2xl p-6 text-center cursor-pointer hover:bg-brand-canvas/60 transition-colors">
+                <span className="w-11 h-11 rounded-full bg-brand-lime/50 text-brand-forest flex items-center justify-center mx-auto mb-2">
+                  <Upload className="w-5 h-5" />
+                </span>
+                <p className="text-sm text-brand-ink">Click to upload company logo</p>
+                <p className="text-xs text-brand-muted mt-1">PNG, JPG up to 500 KB (Optional)</p>
+              </div>
+            </label>
+          )}
+        </section>
 
-        {/* Info Section */}
-        <div className="card-bento bg-emerald-50 border border-emerald-200/50 p-6">
-          <h3 className="font-medium text-emerald-900 mb-2">Profile Information</h3>
-          <p className="text-sm text-emerald-800">
-            Update your business details here. Your email address cannot be changed. To change your password,{' '}
-            <Link to="/forgot-password" className="font-semibold underline">send yourself a reset link</Link>.
-          </p>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
+            Cancel
+          </button>
+          <button type="submit" disabled={isSaving} className="btn-primary">
+            {isSaving ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
+          </button>
         </div>
-      </main>
+      </form>
+
+      <div className="rounded-[28px] bg-brand-lime/30 p-5 sm:p-6">
+        <h3 className="font-semibold text-brand-ink mb-1">Profile Information</h3>
+        <p className="text-sm text-brand-ink/80">
+          Update your business details here. Your email address cannot be changed. To change your password,{' '}
+          <Link to="/forgot-password" className="font-semibold text-brand-forest underline">send yourself a reset link</Link>.
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Save, X as XIcon, AlertCircle, CheckCircle } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useCustomers, useInvoices } from '../context/DataContext';
+import { Plus, Save, AlertCircle, CheckCircle } from 'lucide-react';
+import { useInvoices } from '../context/DataContext';
 import CustomerSelect from '../components/CustomerSelect';
 import NewCustomerModal from '../components/NewCustomerModal';
 import InvoiceLineItem, { LineItem } from '../components/InvoiceLineItem';
 import InvoiceSummary from '../components/InvoiceSummary';
 import { updateInvoice, Invoice } from '../services/invoiceService';
+import PageHeader from '../components/PageHeader';
 
 
 export default function EditInvoicePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { customers } = useCustomers();
   const { invoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -123,18 +121,15 @@ export default function EditInvoicePage() {
     }
   };
 
+  const back = { to: id ? `/invoices/${id}` : '/invoices', label: 'Back to Invoices' };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
-        <button
-          onClick={() => navigate('/invoices')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Invoices
-        </button>
-        <div className="text-center py-12">
-          <p className="text-slate-600">Loading invoice...</p>
+      <div className="space-y-5">
+        <PageHeader title="Edit Invoice" back={{ to: '/invoices', label: 'Back to Invoices' }} />
+        <div className="card p-10 text-center">
+          <div className="w-10 h-10 mx-auto border-4 border-brand-line border-t-brand-forest rounded-full animate-spin"></div>
+          <p className="text-brand-muted mt-4">Loading invoice...</p>
         </div>
       </div>
     );
@@ -142,16 +137,10 @@ export default function EditInvoicePage() {
 
   if (!invoice) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
-        <button
-          onClick={() => navigate('/invoices')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Invoices
-        </button>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-700">{errorMessage || 'Invoice not found'}</p>
+      <div className="space-y-5">
+        <PageHeader title="Edit Invoice" back={{ to: '/invoices', label: 'Back to Invoices' }} />
+        <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-[28px] p-6 text-center">
+          <p className="text-brand-down">{errorMessage || 'Invoice not found'}</p>
         </div>
       </div>
     );
@@ -160,139 +149,130 @@ export default function EditInvoicePage() {
   const totals = calculateTotals();
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <button
-        onClick={() => navigate('/invoices')}
-        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Invoices
-      </button>
+    <div className="space-y-5">
+      <PageHeader title="Edit Invoice" description={invoice.invoice_number} back={{ to: '/invoices', label: 'Back to Invoices' }} />
 
       {errorMessage && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-red-700">{errorMessage}</p>
+        <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-brand-down flex-shrink-0 mt-0.5" />
+          <p className="text-brand-down">{errorMessage}</p>
         </div>
       )}
 
       {successMessage && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-          <p className="text-green-700">{successMessage}</p>
+        <div role="status" className="bg-brand-lime/40 rounded-2xl p-4 flex items-start gap-3">
+          <CheckCircle className="w-5 h-5 text-brand-forest flex-shrink-0 mt-0.5" />
+          <p className="text-brand-forest">{successMessage}</p>
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Column - Form */}
-        <div className="col-span-2 space-y-6">
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-6">Edit Invoice</h2>
+        <div className="lg:col-span-2 space-y-5 min-w-0">
+          <section className="card p-5 sm:p-6">
+            <h2 className="text-lg font-semibold text-brand-ink mb-5">Invoice Details</h2>
 
             {/* Customer Selection */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Customer</label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <CustomerSelect
-                    selectedCustomerId={selectedCustomer}
-                    onSelect={setSelectedCustomer}
-                    onAddNew={() => setIsNewCustomerModalOpen(true)}
-                  />
-                </div>
-              </div>
+            <div className="mb-5">
+              <span className="field-label">Customer</span>
+              <CustomerSelect
+                selectedCustomerId={selectedCustomer}
+                onSelect={setSelectedCustomer}
+                onAddNew={() => setIsNewCustomerModalOpen(true)}
+              />
             </div>
 
             {/* Invoice Details */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Invoice Date</label>
+                <label htmlFor="edit-invoice-date" className="field-label">Invoice Date</label>
                 <input
+                  id="edit-invoice-date"
                   type="date"
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="input-field"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
+                <label htmlFor="edit-due-date" className="field-label">Due Date</label>
                 <input
+                  id="edit-due-date"
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="input-field"
                 />
               </div>
               <div className="flex items-end">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer h-[50px]">
                   <input
                     type="checkbox"
                     checked={applyVat}
                     onChange={(e) => setApplyVat(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300"
+                    className="w-4 h-4 rounded accent-brand-forest"
                   />
-                  <span className="text-sm font-semibold text-slate-700">Apply VAT (7.5%)</span>
+                  <span className="text-sm font-medium text-brand-ink">Apply VAT (7.5%)</span>
                 </label>
               </div>
             </div>
 
-            {/* Line Items */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-slate-700">Line Items</h3>
-                <button
-                  onClick={handleAddLineItem}
-                  className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm font-medium"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Item
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {lineItems.map((item, index) => (
-                  <InvoiceLineItem
-                    key={item.id}
-                    item={item}
-                    onUpdate={handleUpdateLineItem}
-                    onRemove={handleRemoveLineItem}
-                    index={index}
-                  />
-                ))}
-              </div>
-            </div>
-
             {/* Notes */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Notes</label>
+            <div>
+              <label htmlFor="edit-invoice-notes" className="field-label">Notes</label>
               <textarea
+                id="edit-invoice-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Any additional notes for the customer..."
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="input-field resize-none"
                 rows={4}
               />
             </div>
+          </section>
 
-            {/* Save Button */}
-            <button
-              onClick={handleSaveInvoice}
-              disabled={isSaving}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Save className="w-5 h-5" />
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
+          {/* Line Items */}
+          <section className="card p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <h2 className="text-lg font-semibold text-brand-ink">Line Items</h2>
+              <button onClick={handleAddLineItem} className="btn-secondary">
+                <Plus className="w-4 h-4" />
+                Add Item
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {lineItems.map((item, index) => (
+                <InvoiceLineItem
+                  key={item.id}
+                  item={item}
+                  onUpdate={handleUpdateLineItem}
+                  onRemove={handleRemoveLineItem}
+                  index={index}
+                />
+              ))}
+            </div>
+          </section>
         </div>
 
         {/* Right Column - Summary */}
-        <div>
+        <div className="space-y-4 min-w-0">
           <InvoiceSummary
             subtotal={totals.subtotal}
             applyVat={applyVat}
             onVatToggle={setApplyVat}
           />
+          <button onClick={handleSaveInvoice} disabled={isSaving} className="btn-primary w-full">
+            <Save className="w-4 h-4" />
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button
+            onClick={() => navigate(back.to)}
+            disabled={isSaving}
+            className="w-full h-11 rounded-full text-sm font-semibold text-brand-muted hover:text-brand-ink hover:bg-white transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import { DataProvider } from './context/DataContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import AppShell from './components/AppShell';
 import { startAnalytics } from './lib/analytics';
 
 // Every page except the landing and login screens is its own chunk, so the first visit only
@@ -53,8 +54,8 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 function PageLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="w-10 h-10 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+    <div className="min-h-screen flex items-center justify-center bg-brand-canvas">
+      <div className="w-10 h-10 border-4 border-brand-line border-t-brand-forest rounded-full animate-spin"></div>
     </div>
   );
 }
@@ -90,19 +91,22 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/complete-profile" element={<CompleteProfilePage />} />
-            <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-            <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-            <Route path="/customers/add" element={<ProtectedRoute><AddCustomerPage /></ProtectedRoute>} />
-            <Route path="/customers/:id" element={<ProtectedRoute><CustomerDetailPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
-            <Route path="/invoices/create" element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
-            <Route path="/invoices/:id/edit" element={<ProtectedRoute><EditInvoicePage /></ProtectedRoute>} />
-            <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetailPage /></ProtectedRoute>} />
-            <Route path="/expenses" element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
-            <Route path="/expenses/create" element={<ProtectedRoute><CreateExpensePage /></ProtectedRoute>} />
-            <Route path="/expenses/:id" element={<ProtectedRoute><ExpenseDetailPage /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+            {/* Signed-in pages share the header and tabs */}
+            <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/customers/add" element={<AddCustomerPage />} />
+              <Route path="/customers/:id" element={<CustomerDetailPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/invoices" element={<InvoicesPage />} />
+              <Route path="/invoices/create" element={<CreateInvoicePage />} />
+              <Route path="/invoices/:id/edit" element={<EditInvoicePage />} />
+              <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+              <Route path="/expenses" element={<ExpensesPage />} />
+              <Route path="/expenses/create" element={<CreateExpensePage />} />
+              <Route path="/expenses/:id" element={<ExpenseDetailPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+            </Route>
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

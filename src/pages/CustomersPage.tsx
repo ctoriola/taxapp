@@ -1,30 +1,22 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Trash2, Mail, Phone, Building2, ArrowUpRight, Menu, X, LogOut, Settings, Bell, Home } from 'lucide-react';
-import { useCustomers } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import GlobalSearch from '../components/GlobalSearch';
+import { Search, Plus, Trash2, Mail, Phone, Building2, ArrowUpRight } from 'lucide-react';
+import { useCustomers, useInvoices } from '../context/DataContext';
+import PageHeader from '../components/PageHeader';
+
+function formatAdded(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 export default function CustomersPage() {
-  const navigate = useNavigate();
   const { customers, deleteCustomer, isLoading, error } = useCustomers();
-  const { user, profile, signOut } = useAuth();
+  const { invoices } = useInvoices();
   const [searchQuery, setSearchQuery] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery.trim()) return customers;
-    
+
     const query = searchQuery.toLowerCase();
     return customers.filter(
       (customer) =>
@@ -35,7 +27,14 @@ export default function CustomersPage() {
     );
   }, [customers, searchQuery]);
 
+  // Customers with invoices can't be deleted: the invoices would lose who they were for
   const handleDelete = async (id: string) => {
+    const invoiceCount = invoices.filter((inv) => inv.customer_id === id).length;
+    if (invoiceCount > 0) {
+      const name = customers.find((c) => c.id === id)?.name || 'This customer';
+      window.alert(`${name} has ${invoiceCount} invoice${invoiceCount === 1 ? '' : 's'}, so they can't be deleted.`);
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
         await deleteCustomer(id);
@@ -46,216 +45,117 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Top Navigation */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-stone-200/50">
-        <div className="flex items-center justify-between px-6 lg:px-8 py-4">
-          {/* Left: Logo & Sidebar Toggle */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-stone-100 rounded-xl transition-all duration-200"
-            >
-              {sidebarOpen ? (
-                <X className="w-6 h-6 text-slate-600" />
-              ) : (
-                <Menu className="w-6 h-6 text-slate-600" />
-              )}
-            </button>            <Link
-              to="/dashboard"
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Dashboard"
-            >
-              <Home className="w-5 h-5 text-slate-600" />
-            </Link>            <div className="hidden lg:flex items-center gap-3">
-              {profile?.logo_url && (
-                <img
-                  src={profile.logo_url}
-                  alt="Company logo"
-                  className="h-8 w-auto"
-                />
-              )}
-              <div>
-                <h2 className="text-xl font-bold text-emerald-700">{profile?.business_name || 'Business'}</h2>
-                <p className="text-xs text-slate-600 mt-1">Logged in as: {user?.email || 'User'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Center: Search */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <GlobalSearch />
-          </div>
-
-          {/* Right: Notifications & Profile */}
-          <div className="flex items-center gap-4">
-            <button className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200 relative">
-              <Bell className="w-5 h-5 text-slate-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-600 rounded-full"></span>
-            </button>
-
-            {profile?.logo_url ? (
-              <img
-                src={profile.logo_url}
-                alt="Company logo"
-                className="h-10 w-10 rounded-full object-cover cursor-pointer hover:shadow-lg transition-all"
-              />
-            ) : (
-              <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-emerald-700 rounded-full flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:shadow-lg transition-all">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
-
-            <Link
-              to="/settings"
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Settings"
-            >
-              <Settings className="w-5 h-5 text-slate-600" />
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="p-2.5 hover:bg-stone-100 rounded-xl transition-all duration-200"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5 text-slate-600" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <main className="px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-emerald-900">Customers</h1>
-            <p className="text-sm text-slate-600 mt-1">Manage and track your customers</p>
-          </div>
-          <Link
-            to="/customers/add"
-            className="btn-primary flex items-center gap-2 rounded-2xl"
-          >
-            <Plus className="w-5 h-5" />
+    <div className="space-y-5">
+      <PageHeader
+        title="Customers"
+        description="Manage and track your customers"
+        actions={
+          <Link to="/customers/add" className="btn-primary">
+            <Plus className="w-4 h-4" />
             Add Customer
           </Link>
+        }
+      />
+
+      {error && (
+        <div role="alert" className="bg-brand-down/5 border border-brand-down/20 rounded-2xl p-4">
+          <p className="text-brand-down text-sm font-medium">{error}</p>
         </div>
-        {/* Error Alert */}
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
-            <p className="text-red-700 text-sm font-medium">{error}</p>
-          </div>
-        )}
+      )}
 
-        {/* Loading State */}
-        {isLoading && customers.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-12 h-12 border-4 border-stone-300 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-stone-600">Loading customers...</p>
-          </div>
-        ) : (
-          <>
-        {/* Search Bar */}
-        <div className="mb-8">
-          <div className="relative">
-            <Search className="absolute left-4 top-3 w-5 h-5 text-stone-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, phone, or tax ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field w-full pl-12"
-            />
-          </div>
+      {isLoading && customers.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="w-10 h-10 border-4 border-brand-line border-t-brand-forest rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-brand-muted">Loading customers...</p>
         </div>
-
-        {/* Results Info */}
-        <div className="mb-6">
-          <p className="text-sm text-stone-600">
-            {filteredCustomers.length} of {customers.length} customer{customers.length !== 1 ? 's' : ''}
-            {searchQuery && ` matching "${searchQuery}"`}
-          </p>
-        </div>
-
-        {/* Customers Grid */}
-        {filteredCustomers.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCustomers.map((customer) => (
-              <div key={customer.id} className="card-bento p-6 bg-gradient-to-br from-emerald-50 to-white hover:shadow-lg transition-all">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-slate-900">{customer.name}</h3>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(customer.id)}
-                    className="p-2 hover:bg-red-50 rounded-xl transition-colors"
-                    title="Delete customer"
-                  >
-                    <Trash2 className="w-5 h-5 text-red-600" />
-                  </button>
-                </div>
-
-                {/* Contact Details */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <Mail className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <a
-                      href={`mailto:${customer.email}`}
-                      className="text-emerald-600 hover:text-emerald-700 truncate font-medium"
-                    >
-                      {customer.email}
-                    </a>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Phone className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <a
-                      href={`tel:${customer.phone}`}
-                      className="text-stone-700 hover:text-stone-900"
-                    >
-                      {customer.phone}
-                    </a>
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-stone-200/50">
-                  <p className="text-xs text-stone-400">Added {customer.created_at}</p>
-                </div>
-
-                {/* Action Button */}
-                <Link
-                  to={`/customers/${customer.id}`}
-                  className="flex items-center gap-2 mt-4 w-full py-2 px-3 btn-secondary rounded-xl transition-all text-center justify-center"
-                >
-                  <ArrowUpRight className="w-4 h-4" />
-                  View Details
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="card-bento p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-xl mb-4">
-              <Building2 className="w-8 h-8 text-emerald-600" />
+      ) : (
+        <>
+          {/* Search */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-brand-muted" />
+              <input
+                type="text"
+                placeholder="Search by name, email, phone, or tax ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-12 pl-11 pr-4 rounded-full bg-white border border-transparent text-sm text-brand-ink placeholder:text-brand-muted focus:outline-none focus:ring-2 focus:ring-brand-forest"
+              />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              {customers.length === 0 ? 'No Customers Yet' : 'No Matching Customers'}
-            </h3>
-            <p className="text-stone-600 mb-6">
-              {customers.length === 0
-                ? 'Add your first customer to get started.'
-                : 'Try adjusting your search criteria.'}
+            <p className="text-sm text-brand-muted">
+              {filteredCustomers.length} of {customers.length} customer{customers.length !== 1 ? 's' : ''}
+              {searchQuery && ` matching "${searchQuery}"`}
             </p>
-            {customers.length === 0 && (
-              <Link
-                to="/customers/add"
-                className="inline-block px-6 py-2 btn-primary rounded-2xl transition-all"
-              >
-                Add First Customer
-              </Link>
-            )}
           </div>
-        )}
+
+          {filteredCustomers.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+              {filteredCustomers.map((customer) => (
+                <div key={customer.id} className="card p-5 sm:p-6 flex flex-col min-w-0">
+                  <div className="flex items-start gap-3">
+                    <span className="w-11 h-11 rounded-full bg-brand-lime text-brand-forest flex items-center justify-center text-base font-semibold flex-shrink-0" aria-hidden="true">
+                      {customer.name.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-brand-ink truncate">{customer.name}</h3>
+                      <p className="text-xs text-brand-muted">Added {formatAdded(customer.created_at)}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(customer.id)}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-brand-down hover:bg-brand-down/10 transition-colors flex-shrink-0"
+                      title="Delete customer"
+                      aria-label={`Delete ${customer.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="mt-5 space-y-2.5 text-sm">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-8 h-8 rounded-full border border-brand-line flex items-center justify-center flex-shrink-0">
+                        <Mail className="w-3.5 h-3.5 text-brand-ink" />
+                      </span>
+                      <a href={`mailto:${customer.email}`} className="text-brand-ink hover:text-brand-forest hover:underline truncate">
+                        {customer.email}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-8 h-8 rounded-full border border-brand-line flex items-center justify-center flex-shrink-0">
+                        <Phone className="w-3.5 h-3.5 text-brand-ink" />
+                      </span>
+                      <a href={`tel:${customer.phone}`} className="text-brand-ink hover:text-brand-forest hover:underline truncate">
+                        {customer.phone}
+                      </a>
+                    </div>
+                  </div>
+
+                  <Link to={`/customers/${customer.id}`} className="btn-secondary w-full mt-5">
+                    <ArrowUpRight className="w-4 h-4" />
+                    View Details
+                  </Link>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card p-10 sm:p-12 text-center">
+              <span className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-lime text-brand-forest mb-4">
+                <Building2 className="w-6 h-6" />
+              </span>
+              <h3 className="text-lg font-semibold text-brand-ink mb-2">
+                {customers.length === 0 ? 'No Customers Yet' : 'No Matching Customers'}
+              </h3>
+              <p className="text-brand-muted mb-6">
+                {customers.length === 0 ? 'Add your first customer to get started.' : 'Try adjusting your search criteria.'}
+              </p>
+              {customers.length === 0 && (
+                <Link to="/customers/add" className="btn-primary">
+                  Add First Customer
+                </Link>
+              )}
+            </div>
+          )}
         </>
-        )}
-      </main>
+      )}
     </div>
   );
 }
